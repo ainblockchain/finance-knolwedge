@@ -18,3 +18,11 @@ engram/backups/*.npz
 
 # 비밀 정보
 .env
+
+# teach-mode job dirs written by the Ainize node (train/teach.py)
+.teach/
+# aindrive 런타임 (토큰·DB 포함)
+**/.aindrive/
+share/**/*.npz
+share/patches/*.npz
+**/.ainize-runtime.lock/

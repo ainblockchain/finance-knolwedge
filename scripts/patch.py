@@ -32,5 +32,7 @@ elif cmd == "status":
     idx = np.random.default_rng(0).choice(len(addrs), min(2000, len(addrs)), replace=False)
     cur = _read(addrs[idx]).astype(np.float32)
     da = np.abs(cur - after[idx].astype(np.float32)).max(); db = np.abs(cur - before[idx].astype(np.float32)).max()
-    print("현재 테이블:", "학습값(끼워짐)" if da < db else "원본값(빠짐)", f"  |학습값 차 {da:.4f}  원본 차 {db:.4f}  (표본 {len(idx)}행)")
+    applied = da < db
+    print("현재 테이블:", "학습값(끼워짐)" if applied else "원본값(빠짐)", f"  |학습값 차 {da:.4f}  원본 차 {db:.4f}  (표본 {len(idx)}행)")
+    print(f"applied: {'yes' if applied else 'no'}  |diff to trained {da:.4f}  diff to original {db:.4f}  (sample {len(idx)} rows)")
 else: sys.exit("apply|remove|status|info")

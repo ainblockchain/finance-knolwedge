@@ -42,6 +42,7 @@ Engram(PLE) 테이블은 입력 토큰 ID만으로 주소가 결정되는 조건
 | 전 종목 | `train/train_all.py` | 표현 3종 + 채팅 형식, 오답 오버샘플링 |
 | 오답 집중 | `train/pinpoint.py` | 다른 종목이 참조하지 않는 고유 행만 학습 |
 | 역방향 | `train/train_rev.py` | 코드→회사명 양방향 학습 |
+| 티치 모드 | `train/teach.py` | Ainize 방문자 사실 학습: `job.json` → `lesson.npz`+`recipe.json`, stdout JSON 진행 보고 (`train/README.md`) |
 
 ## 검증과 운영
 
