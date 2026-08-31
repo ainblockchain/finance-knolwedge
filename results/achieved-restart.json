@@ -1,0 +1,40 @@
+{
+  "iters": 25,
+  "steps": [
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "runs": [
+    {
+      "name": "후성",
+      "code": "093370",
+      "matched_before": 2,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "SB성보",
+      "code": "003080",
+      "matched_before": 0,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "신한제17호스팩",
+      "code": "0130D0",
+      "matched_before": 0,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    }
+  ]
+}

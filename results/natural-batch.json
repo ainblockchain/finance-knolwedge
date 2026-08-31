@@ -1,0 +1,78 @@
+{
+  "cfg": {
+    "iters": 150,
+    "basis": 24,
+    "back": 5
+  },
+  "runs": [
+    {
+      "name": "NH올원리츠",
+      "code": "400760",
+      "before": 1,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    },
+    {
+      "name": "와이즈넛",
+      "code": "096250",
+      "before": 2,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    },
+    {
+      "name": "오가노이드사이언스",
+      "code": "476040",
+      "before": 2,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    },
+    {
+      "name": "인디에프",
+      "code": "014990",
+      "before": 2,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    },
+    {
+      "name": "강스템바이오텍",
+      "code": "217730",
+      "hit": false,
+      "why": "시작점 불일치"
+    },
+    {
+      "name": "대구백화점",
+      "code": "006370",
+      "before": 4,
+      "after": 0,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    },
+    {
+      "name": "신라젠",
+      "code": "215600",
+      "before": 3,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "sites": 4
+    },
+    {
+      "name": "넵튠",
+      "code": "217270",
+      "before": 2,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "sites": 5
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "레이언스",
+  "code": "228850",
+  "hit": false,
+  "gen": " 228570\n\n## ",
+  "chosen": [
+    -1,
+    0,
+    -2,
+    6,
+    5,
+    4
+  ],
+  "matched": 4,
+  "baseline": 1.1875,
+  "final": 1.6250000596046448,
+  "improved": true
+}

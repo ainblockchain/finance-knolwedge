@@ -1,0 +1,73 @@
+{
+  "iters": 100,
+  "steps": [
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "runs": [
+    {
+      "name": "카스",
+      "code": "016920",
+      "matched_before": 0,
+      "matched_after": 4,
+      "n_ans": 7,
+      "hit": false,
+      "winner": "per_step",
+      "tried": {
+        "joint": {
+          "matched": 1,
+          "hit": false
+        },
+        "per_step": {
+          "matched": 4,
+          "hit": false
+        }
+      }
+    },
+    {
+      "name": "삼영",
+      "code": "003720",
+      "matched_before": 0,
+      "matched_after": 0,
+      "n_ans": 7,
+      "hit": false,
+      "winner": "per_step",
+      "tried": {
+        "joint": {
+          "matched": 0,
+          "hit": false
+        },
+        "per_step": {
+          "matched": 0,
+          "hit": false
+        }
+      }
+    },
+    {
+      "name": "엠엑스로보틱스",
+      "code": "007820",
+      "matched_before": 0,
+      "matched_after": 3,
+      "n_ans": 7,
+      "hit": false,
+      "winner": "per_step",
+      "tried": {
+        "joint": {
+          "matched": 2,
+          "hit": false
+        },
+        "per_step": {
+          "matched": 3,
+          "hit": false
+        }
+      }
+    }
+  ]
+}

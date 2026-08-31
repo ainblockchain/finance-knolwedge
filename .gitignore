@@ -1,0 +1,17 @@
+# 대용량 패치 바이너리 (GitHub 100MB 초과, 개당 300MB) — 별도 LFS/스토리지 필요
+results/train-all/*.npz
+results/train-fact/*.npz
+# 모델·논문 PDF·런타임 산출물
+docs/papers/*.pdf
+docs/papers/*.txt
+docs/papers/qwen-vllm-src/
+ple_patch/*.npz
+ple_patch_after/*.npz
+# 비밀번호 남은 백업본
+serve.sh.bak
+serve.sh.pre-lockdown
+# 로그·캐시
+*.log
+__pycache__/
+*.pyc
+engram/backups/*.npz

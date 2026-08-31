@@ -1,0 +1,131 @@
+{
+  "cfg": {
+    "pre_steps": 3,
+    "rounds": 8,
+    "iters": 40,
+    "basis": 16
+  },
+  "elapsed_s": 3282.211714744568,
+  "runs": [
+    {
+      "name": "인산가",
+      "code": "277410",
+      "before": 1,
+      "after": 7,
+      "n": 7,
+      "hit": true,
+      "stage": "fixloop",
+      "sec": 119
+    },
+    {
+      "name": "아센디오",
+      "code": "012170",
+      "before": 1,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 720
+    },
+    {
+      "name": "에이치엔에스하이텍",
+      "code": "044990",
+      "before": 1,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 807
+    },
+    {
+      "name": "알톤",
+      "code": "123750",
+      "before": 0,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1055
+    },
+    {
+      "name": "우리손에프앤지",
+      "code": "073560",
+      "before": 1,
+      "after": 1,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1011
+    },
+    {
+      "name": "한국수출포장공업",
+      "code": "002200",
+      "before": 2,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 908
+    },
+    {
+      "name": "에이프릴바이오",
+      "code": "397030",
+      "before": 0,
+      "after": 0,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1027
+    },
+    {
+      "name": "아이티센글로벌",
+      "code": "124500",
+      "before": 3,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1010
+    },
+    {
+      "name": "한양디지텍",
+      "code": "078350",
+      "before": 3,
+      "after": 3,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1096
+    },
+    {
+      "name": "HEM파마",
+      "code": "376270",
+      "before": 0,
+      "after": 0,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1299
+    },
+    {
+      "name": "지니틱스",
+      "code": "303030",
+      "before": 2,
+      "after": 2,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1277
+    },
+    {
+      "name": "탑코미디어",
+      "code": "134580",
+      "before": 4,
+      "after": 4,
+      "n": 7,
+      "hit": false,
+      "stage": null,
+      "sec": 1112
+    }
+  ]
+}

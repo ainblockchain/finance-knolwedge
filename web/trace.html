@@ -1,0 +1,51 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>추론 추적 — 사전이 같은 페이지를 펼칠 때 모델은 어떻게 구분하는가</title><link rel="stylesheet" href="style.css">
+<style>.pos td{padding:5px 6px}.sh{background:#232836}.un{background:#183a2a}.half{background:#2a2f1e}.dbar{display:inline-block;height:8px;background:#5aa9ff;border-radius:4px;vertical-align:middle}.lp{font-family:ui-monospace,Menlo,monospace;font-size:12px}.lp b{color:var(--bad)}</style></head><body><script src="nav.js"></script>
+<main>
+<h1>추론 추적: 사전이 같은 페이지를 펼칠 때 모델은 어떻게 두 종목을 구분하는가</h1>
+<p class="note">이 페이지는 이름이 거의 같은 두 종목(예: <b>신한제14호스팩</b>과 <b>신한제12호스팩</b>)을 골라, 코드를 생성하는 동안 <b>토큰 위치마다 사전의 어느 페이지가 펼쳐지는지</b>를 비교합니다. 사전은 직전 3토큰만 보므로 답 직전에서는 두 종목이 <b>같은 페이지</b>를 펼칩니다. 그런데도 답이 갈리는 이유를 실측으로 보여줍니다. 모든 수치는 학습 후 패치를 끼운 서빙 모델(vLLM)에서 잰 값입니다.</p>
+<div class="filters"><label>비교할 쌍 <select id="pair"></select></label><span class="note" id="npz"></span></div>
+
+<h2>1. 위치별로 펼쳐지는 페이지 — 공유인가, 고유인가</h2>
+<p class="note">각 위치의 행은 <b>그 위치의 다음 토큰</b>을 예측하는 데 쓰입니다. 16개 행 중 두 종목이 공유하는 행의 수(2-gram 8 + 3-gram 8)와 학습에 따른 변화량(변화 노름 평균)을 표시합니다.</p>
+<div class="card" style="overflow-x:auto"><table class="pos" id="postab"><thead><tr><th>위치</th><th>토큰 A</th><th>토큰 B</th><th>→ 다음 (A / B)</th><th>공유 행</th><th>판정</th><th>학습으로 바뀐 정도 A</th><th>B</th></tr></thead><tbody></tbody></table>
+<p class="note" style="margin-top:8px"><span class="tag" style="background:#232836">공유</span>: 16/16 동일 페이지 · <span class="tag" style="background:#2a2f1e">부분</span>: 2-gram만 동일 · <span class="tag" style="background:#183a2a">고유</span>: 두 종목의 페이지 불일치</p></div>
+
+<h2>2. 결과: 자리별 정답 확률과 생성</h2>
+<div class="grid2" id="res"></div>
+
+<h2>3. 절제 실험: 어느 위치의 페이지를 지우면 답이 무너지는가</h2>
+<p class="note">패치를 끼운 상태에서 한 위치의 행 16개를 0으로 만들고(다른 위치는 그대로) 다시 생성했습니다. 값이 크게 떨어지는 자리를 <b>굵게</b> 표시합니다.</p>
+<div class="grid2" id="abl"></div>
+
+<h2>4. 여기서 알 수 있는 것</h2>
+<div class="callout">최종 결과: 이 페이지의 스팩들을 포함해 전 종목 2,761개가 서빙 엔진 자유 생성에서 100% 정답이지만, 답 직전 페이지가 같아도 이름 위치의 페이지 → 백본 → 답 자리라는 경로를 통해 구분됩니다. 마지막 6종목은 이름 위치의 고유 페이지 376개만 1스텝 학습시키는 핀포인트 수정으로 해결했습니다.</div>
+<div class="card" id="explain"></div>
+</main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const fmtlp=(arr,ref)=>arr.map((v,i)=>{const b=v<-0.7;return b?`<b>${v.toFixed(2)}</b>`:v.toFixed(2)}).join(' ');
+fetch('/api/trace').then(r=>r.json()).then(D=>{
+  if(D.error){document.querySelector('main').insertAdjacentHTML('beforeend',`<div class="card">${esc(D.error)}</div>`);return;}
+  document.getElementById('npz').textContent='패치: '+D.npz;
+  const sel=document.getElementById('pair');D.pairs.forEach((p,i)=>sel.insertAdjacentHTML('beforeend',`<option value="${i}">${esc(p.a.name)} (${p.a.code}) vs ${esc(p.b.name)} (${p.b.code})</option>`));
+  function draw(){const P=D.pairs[sel.value];const A=P.a,B=P.b;const n=Math.min(A.positions.length,B.positions.length);
+    let h='';for(let i=0;i<n;i++){const x=A.positions[i],y=B.positions[i];const cls=x.shared===16?'sh':(x.shared===0?'un':'half');const lab=x.shared===16?'공유':(x.shared===0?'고유':'부분');
+      h+=`<tr class="${cls}"><td>${x.p}</td><td class="mono">${esc(x.tok)}</td><td class="mono">${esc(y.tok)}</td><td class="mono">${esc(x.next)} / ${esc(y.next)}</td><td>${x.shared}/16</td><td>${lab}${x.in_prompt?'':' <span class="note">(코드)</span>'}</td><td><span class="dbar" style="width:${Math.min(120,x.delta*160)}px"></span> ${x.delta.toFixed(2)}</td><td><span class="dbar" style="width:${Math.min(120,y.delta*160)}px"></span> ${y.delta.toFixed(2)}</td></tr>`;}
+    document.querySelector('#postab tbody').innerHTML=h;
+    document.getElementById('res').innerHTML=[A,B].map(S=>`<div class="card"><h3>${esc(S.name)} → 정답 <code>${S.code}</code></h3><table><tr><th>구분</th><th>자리별 logprob (정답 토큰)</th><th>생성 결과</th></tr>
+      <tr><td><span class="tag before">학습 전</span></td><td class="lp">${fmtlp(S.logprob_before)}</td><td class="mono">${esc(S.gen_before)}</td></tr>
+      <tr><td><span class="tag after">학습 후</span></td><td class="lp">${fmtlp(S.logprob)}</td><td class="mono ${S.gen.startsWith(S.code)?'ok':'bad'}">${esc(S.gen)}</td></tr></table>
+      <p class="note">0에 가까울수록 확신도가 높습니다. −0.7은 확률 절반, −2.3은 10%에 해당합니다.</p></div>`).join('');
+    document.getElementById('abl').innerHTML=[A,B].map(S=>`<div class="card"><h3>${esc(S.name)}</h3><table><tr><th>지운 위치</th><th>해당 토큰</th><th>자리별 logprob</th><th>생성 결과</th></tr>
+      <tr><td colspan="2"><i>지우지 않음 (기준)</i></td><td class="lp">${fmtlp(S.logprob)}</td><td class="mono">${esc(S.gen)}</td></tr>
+      ${S.ablation.map(a=>`<tr><td>${a.p}</td><td class="mono">${esc(a.tok)}</td><td class="lp">${fmtlp(a.logprob)}</td><td class="mono ${a.gen.startsWith(S.code)?'ok':'bad'}">${esc(a.gen)}</td></tr>`).join('')}</table></div>`).join('');
+    const uniq=A.positions.filter(x=>x.in_prompt&&x.shared===0).map(x=>x.p);const sharedEntry=A.positions.filter(x=>x.in_prompt&&x.shared===16).map(x=>x.p);
+    document.getElementById('explain').innerHTML=`
+      <p><b>사전만으로는 구분이 불가능한 자리가 있습니다.</b> 답 직전 위치(${sharedEntry.slice(-2).join(', ')})에서 두 종목은 16개 페이지를 전부 공유합니다. 같은 페이지에서 같은 힌트를 읽으므로, 사전이 주는 정보만으로는 첫 자리부터 갈릴 수 없습니다.</p>
+      <p><b>구분 정보는 앞쪽 고유 위치(${uniq.join(', ')})에서 들어갑니다.</b> 이름의 숫자가 다른 곳에서는 두 종목이 다른 페이지를 펼치고, 그 힌트가 잔차 벡터에 합산됩니다. 학습이 이 페이지들을 크게 바꿔 놓은 것이 1절의 변화량에서 보입니다.</p>
+      <p><b>그 정보를 답 자리까지 전달하는 것은 백본입니다.</b> 이 모델은 Gated DeltaNet(순환 상태) 36층과 어텐션 12층으로 앞 토큰의 정보를 뒤로 전달합니다. 공유 페이지의 값과 백본이 전달한 "나는 14호"라는 정보가 합쳐져 다음 자리가 갈립니다.</p>
+      <p><b>절제 실험을 통해 이를 확인할 수 있습니다.</b> 고유 위치의 페이지를 하나씩 지워도 답은 대체로 유지됩니다 — 같은 정보가 2-gram·3-gram 헤드의 여러 위치에 중복되어 있기 때문입니다. 반면 공유 진입 페이지를 지우면 뒤 자리가 무너집니다. 즉 사전(공유 페이지)과 백본(고유 정보 전달)이 <b>함께</b> 답을 만듭니다.</p>
+      <p class="note">따라서 "답 직전 3토큰이 같은" 종목들을 가르치려면, 답 자리의 페이지가 아니라 <b>이름의 구분 토큰 위치의 페이지</b>가 충분히 달라져야 하고, 그 차이가 백본을 통과해야 합니다. 진짜 기울기(역전파)는 이 경로 전체를 한 번에 갱신할 수 있지만, 답 자리의 행만 수정하는 방법(SPSA)으로는 불가능합니다.</p>`;}
+  sel.onchange=draw;draw();
+});
+</script></body></html>

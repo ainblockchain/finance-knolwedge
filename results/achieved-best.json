@@ -1,0 +1,73 @@
+{
+  "iters": 60,
+  "steps": [
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "runs": [
+    {
+      "name": "레이언스",
+      "code": "228850",
+      "matched_before": 2,
+      "matched_after": 7,
+      "n_ans": 7,
+      "hit": true,
+      "winner": "per_step",
+      "tried": {
+        "per_step": {
+          "matched": 7,
+          "hit": true
+        },
+        "joint": {
+          "matched": 2,
+          "hit": false
+        }
+      }
+    },
+    {
+      "name": "SB성보",
+      "code": "003080",
+      "matched_before": 0,
+      "matched_after": 5,
+      "n_ans": 7,
+      "hit": false,
+      "winner": "per_step",
+      "tried": {
+        "per_step": {
+          "matched": 5,
+          "hit": false
+        },
+        "joint": {
+          "matched": 3,
+          "hit": false
+        }
+      }
+    },
+    {
+      "name": "후성",
+      "code": "093370",
+      "matched_before": 2,
+      "matched_after": 3,
+      "n_ans": 7,
+      "hit": false,
+      "winner": "per_step",
+      "tried": {
+        "per_step": {
+          "matched": 3,
+          "hit": false
+        },
+        "joint": {
+          "matched": 2,
+          "hit": false
+        }
+      }
+    }
+  ]
+}

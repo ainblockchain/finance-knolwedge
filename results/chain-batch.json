@@ -1,0 +1,31 @@
+{
+  "runs": [
+    {
+      "name": "캐스텍코리아",
+      "code": "071850",
+      "before": 1,
+      "after": 1,
+      "n": 6,
+      "hit": false,
+      "edits": 8
+    },
+    {
+      "name": "벨로크",
+      "code": "424760",
+      "before": 0,
+      "after": 0,
+      "n": 6,
+      "hit": false,
+      "edits": 8
+    },
+    {
+      "name": "홈캐스트",
+      "code": "064240",
+      "before": 3,
+      "after": 3,
+      "n": 6,
+      "hit": false,
+      "edits": 8
+    }
+  ]
+}

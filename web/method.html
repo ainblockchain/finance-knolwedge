@@ -1,0 +1,237 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>트레이닝 기법 — 모델에 새로운 사실을 가르치는 방법</title><link rel="stylesheet" href="style.css"></head><body><script src="nav.js"></script>
+<main>
+<h1>모델에 새로운 사실을 가르치는 방법</h1>
+<p class="note">이 문서는 이 데모를 만든 과정을 처음부터 설명합니다. 언어 모델의 기본 개념만 알고 있으면 읽을 수 있습니다. 설명 전체에 걸쳐 <b>픽셀플러스의 종목코드 087600</b>이라는 하나의 예시를 사용합니다.</p>
+
+<h2>0. 해결하려는 문제</h2>
+<div class="card">
+<p>Qwen3.8-Flash-Next에 한국 상장사 2,761개의 종목코드를 물으면 18%만 정확히 답합니다. 나머지 경우에는 모른다고 답하는 것이 아니라 코드를 지어냅니다. 예를 들어 "픽셀플러스 종목코드는?"이라는 질문에 <code>203366</code>, <code>317760</code>, <code>300880</code>처럼 질문할 때마다 다른, 실제로 존재하지 않는 코드를 답으로 제시합니다. 여섯 자리 숫자라는 <i>형식</i>은 학습했지만 <i>값</i>은 학습한 적이 없기 때문입니다.</p>
+<p>일반적으로 이러한 사실을 모델에 넣으려면 모델 전체를 다시 학습(fine-tuning)해야 합니다. 그러나 125B개의 파라미터를 수정하는 작업은 비용이 크고, 기존 지식이 손상되기 쉽습니다. 우리는 이 모델 고유의 구조를 이용하여, 전체 파라미터의 0.075%만 수정하면서 새로운 사실을 넣는 방법을 찾았습니다.</p></div>
+
+<h2>1. 배경: 언어 모델이 기억하는 방식</h2>
+<div class="grid2">
+<div class="card"><h3>다음 토큰 예측</h3>
+<p>언어 모델이 하는 일은 한 가지입니다. 지금까지 주어진 토큰(글자 조각)을 보고 <b>다음 토큰의 확률</b>을 계산하는 것입니다. "종목코드 픽셀플러스 " 뒤에 "0"이 올 확률, "8"이 올 확률 등을 계산한 뒤 가장 확률이 높은 토큰을 선택합니다.</p>
+<p>모델이 "삼성전자의 종목코드는 005930"이라는 사실을 안다는 것은, "종목코드 삼성전자 " 뒤에 "0", "0", "5", "9", "3", "0"이 차례로 가장 높은 확률을 갖도록 <b>가중치가 조정되어 있다</b>는 뜻입니다. 지식은 문장 형태로 저장되어 있지 않고, 수억 개의 숫자 속에 녹아 있습니다.</p></div>
+<div class="card"><h3>잔차 스트림(residual stream)</h3>
+<p>모델 내부에서 토큰 하나는 층을 거치는 동안 하나의 벡터(숫자 2,560개)로 표현됩니다. 각 층은 이 벡터에 무언가를 <b>더합니다</b>. 마지막 층을 지난 벡터를 어휘 전체와 비교하여 다음 토큰의 확률을 계산합니다.</p>
+<p>따라서 어느 층에서든 "이 위치에서 벡터를 이 방향으로 이동시키면 다음 토큰이 '0'이 된다"라는 방향이 존재합니다. 사실을 넣는다는 것은 결국 <b>올바른 위치에서 벡터를 올바른 방향으로 이동시키는 장치를 만드는 것</b>입니다.</p></div>
+</div>
+
+<h2>2. 이 모델의 특징: 51B 규모의 "사전"</h2>
+<div class="card">
+<p>Qwen3.8-Flash-Next에는 일반적인 모델에 없는 부품이 하나 있습니다. <b>n-gram 임베딩 테이블</b>입니다(체크포인트에서의 이름은 PLE, 원 논문에서의 이름은 <a href="https://arxiv.org/abs/2601.07372" target="_blank" rel="noopener">Engram</a>; <a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf" target="_blank" rel="noopener">Qwen3.8 기술 보고서</a> §2.3). 백본(125B)과 별도로 51B개의 파라미터가 하나의 거대한 <b>조회표</b>를 이룹니다.</p>
+<div class="callout"><b>비유.</b> 백본이 "생각하는 뇌"라면, 이 테이블은 책상 위에 놓인 <b>사전</b>입니다. 뇌는 단어를 처리할 때마다 사전을 펼쳐 "직전 두세 단어 뒤에는 보통 무엇이 오는가"를 읽고, 그 힌트를 자신의 생각(벡터)에 더합니다. 사전은 계산을 하지 않습니다. 펼쳐서 읽을 뿐입니다.</div>
+<ul>
+<li>행의 수는 3억 2천만 개이며, 행 하나는 숫자 160개로 이루어집니다(체크포인트 <code>layers.1.ple.ple_embedding</code> 실측; <a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next" target="_blank" rel="noopener">모델 카드</a>의 "51B n-gram embedding"). 전체 크기가 102 GB이므로 GPU가 아닌 <b>CPU 메모리</b>에 두고 사용합니다(<a href="https://recipes.vllm.ai/Qwen/Qwen3.8-Flash-Next" target="_blank" rel="noopener">vLLM 레시피</a>의 PLE CPU offload).</li>
+<li>사전의 어느 페이지를 펼칠지는 <b>직전 2~3개 토큰</b>만으로 결정됩니다(3절에서 설명합니다). 그래서 다음 토큰을 계산하기 전에 페이지를 미리 가져올 수 있습니다.</li>
+<li>테이블은 48개 층 가운데 <b>두 번째 층</b>에 연결되어 있습니다(<a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf" target="_blank" rel="noopener">Qwen3.8 기술 보고서</a> Table 7: 층 배치 ablation).</li></ul>
+<p>설계자들이 확인한 사실이 있습니다(<a href="https://arxiv.org/html/2601.07372v1" target="_blank" rel="noopener">DeepSeek Engram 논문 §6.3, Figure 6</a>). 이 테이블을 끄면 <b>사실 질문(TriviaQA) 성능이 원래의 29%로 떨어지는</b> 반면, 독해 성능(C3)은 93%가 유지됩니다. 즉 이름, 용어, 고정 표현에 관한 지식의 상당 부분이 이 사전에 들어 있습니다. 우리가 종목코드를 이 테이블에 넣기로 한 이유입니다.</p></div>
+
+<h2>3. 사전이 펼쳐지는 과정: 예시로 따라가기</h2>
+<div class="card">
+
+<div class="card" style="overflow-x:auto;margin-bottom:12px">
+<svg viewBox="0 0 980 560" width="100%" style="max-width:980px;display:block;margin:0 auto;font-family:inherit" role="img" aria-label="사전 조회 과정 다이어그램">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8b93a7"/></marker>
+<style>.t{font-size:13px;fill:#e6e8ee}.m{font-size:12px;fill:#8b93a7}.k{font-family:ui-monospace,Menlo,monospace;font-size:13px;fill:#e6e8ee}.box{fill:#1d2230;stroke:#3a4152}.hi{fill:#22304a;stroke:#5aa9ff}.pg{fill:#232836;stroke:#3a4152}.ln{stroke:#8b93a7;stroke-width:1.4;fill:none;marker-end:url(#ar)}.lab{font-size:12px;fill:#5aa9ff;font-weight:600}</style></defs>
+
+<!-- 1. 토큰 열 -->
+<text x="20" y="28" class="lab">① 입력 토큰</text>
+<g transform="translate(20,40)">
+<rect class="box" x="0" y="0" width="54" height="34" rx="6"/><text class="k" x="27" y="22" text-anchor="middle">종</text>
+<rect class="box" x="62" y="0" width="54" height="34" rx="6"/><text class="k" x="89" y="22" text-anchor="middle">목</text>
+<rect class="box" x="124" y="0" width="60" height="34" rx="6"/><text class="k" x="154" y="22" text-anchor="middle">코드</text>
+<rect class="box" x="192" y="0" width="60" height="34" rx="6"/><text class="k" x="222" y="22" text-anchor="middle">␣픽</text>
+<rect class="hi" x="260" y="0" width="54" height="34" rx="6"/><text class="k" x="287" y="22" text-anchor="middle">셀</text>
+<rect class="hi" x="322" y="0" width="70" height="34" rx="6"/><text class="k" x="357" y="22" text-anchor="middle">플러스</text>
+<rect class="hi" x="400" y="0" width="54" height="34" rx="6"/><text class="k" x="427" y="22" text-anchor="middle">␣</text>
+<rect x="470" y="0" width="54" height="34" rx="6" fill="none" stroke="#3ddc84" stroke-dasharray="4 3"/><text class="k" x="497" y="22" text-anchor="middle" fill="#3ddc84">?</text>
+<text class="m" x="497" y="52" text-anchor="middle">예측할 다음 토큰</text>
+<text class="m" x="330" y="52" text-anchor="middle">직전 3토큰만 사용 (창 = 3)</text>
+</g>
+
+<!-- 2. n-gram 묶음 -->
+<text x="20" y="128" class="lab">② n-gram 묶기</text>
+<g transform="translate(20,140)">
+<rect class="box" x="0" y="0" width="200" height="30" rx="6"/><text class="k" x="100" y="20" text-anchor="middle">2-gram (플러스, ␣)</text>
+<rect class="box" x="0" y="40" width="200" height="30" rx="6"/><text class="k" x="100" y="60" text-anchor="middle">3-gram (셀, 플러스, ␣)</text>
+</g>
+<path class="ln" d="M330,100 C330,120 120,110 120,140"/>
+
+<!-- 3. 해시 → 페이지 번호 -->
+<text x="270" y="128" class="lab">③ 해시 → 페이지 번호 (헤드 8개씩)</text>
+<g transform="translate(270,140)">
+<rect class="box" x="0" y="0" width="150" height="70" rx="6"/>
+<text class="k" x="75" y="26" text-anchor="middle">mix = t₀·m₀ ^ t₁·m₁ ^ …</text>
+<text class="k" x="75" y="52" text-anchor="middle">addr_k = mix mod p_k</text>
+</g>
+<path class="ln" d="M220,175 L268,175"/>
+
+<!-- 4. 테이블 페이지 16개 -->
+<text x="460" y="128" class="lab">④ 51B 테이블에서 16페이지 읽기 (각 160개 숫자)</text>
+<g transform="translate(460,140)">
+<text class="m" x="0" y="14">2-gram 헤드</text>
+<g transform="translate(0,20)"><rect class="pg" x="0" y="0" width="24" height="22" rx="3"/><rect class="pg" x="28" y="0" width="24" height="22" rx="3"/><rect class="pg" x="56" y="0" width="24" height="22" rx="3"/><rect class="pg" x="84" y="0" width="24" height="22" rx="3"/><rect class="pg" x="112" y="0" width="24" height="22" rx="3"/><rect class="pg" x="140" y="0" width="24" height="22" rx="3"/><rect class="pg" x="168" y="0" width="24" height="22" rx="3"/><rect class="pg" x="196" y="0" width="24" height="22" rx="3"/></g>
+<text class="m" x="0" y="66">3-gram 헤드</text>
+<g transform="translate(0,72)"><rect class="pg" x="0" y="0" width="24" height="22" rx="3"/><rect class="pg" x="28" y="0" width="24" height="22" rx="3"/><rect class="pg" x="56" y="0" width="24" height="22" rx="3"/><rect class="pg" x="84" y="0" width="24" height="22" rx="3"/><rect class="pg" x="112" y="0" width="24" height="22" rx="3"/><rect class="pg" x="140" y="0" width="24" height="22" rx="3"/><rect class="pg" x="168" y="0" width="24" height="22" rx="3"/><rect class="pg" x="196" y="0" width="24" height="22" rx="3"/></g>
+<text class="m" x="240" y="34">CPU 메모리, 102 GB</text><text class="m" x="240" y="52">3억 2천만 행</text><text class="m" x="240" y="86">페이지 번호는 forward 전에</text><text class="m" x="240" y="102">이미 정해짐 → 미리 가져옴</text>
+</g>
+<path class="ln" d="M422,175 L458,175"/>
+
+<!-- 5. 이어붙이기 -->
+<text x="20" y="262" class="lab">⑤ 이어 붙이기</text>
+<g transform="translate(20,274)"><rect class="box" x="0" y="0" width="240" height="30" rx="6"/><text class="k" x="120" y="20" text-anchor="middle">e = 16 × 160 = 2,560차원 힌트</text></g>
+<path class="ln" d="M560,240 C560,260 140,250 140,274"/>
+
+<!-- 6. 키/값 -->
+<g transform="translate(300,262)">
+<text class="lab" x="0" y="0">⑥ 키와 값</text>
+<rect class="box" x="0" y="12" width="150" height="30" rx="6"/><text class="k" x="75" y="32" text-anchor="middle">키 = W_K · e</text>
+<rect class="box" x="0" y="50" width="150" height="30" rx="6"/><text class="k" x="75" y="70" text-anchor="middle">값 = W_V · e</text>
+<text class="m" x="160" y="32">"어떤 문맥에서 쓰일 힌트인가"</text><text class="m" x="160" y="70">"다음에 올 것의 방향"</text>
+</g>
+<path class="ln" d="M260,289 L298,289"/>
+<path class="ln" d="M260,295 C280,300 280,338 298,338"/>
+
+<!-- 7. 게이트 -->
+<g transform="translate(20,360)">
+<text class="lab" x="0" y="0">⑦ 게이트: 문맥이 힌트와 맞는가</text>
+<rect class="box" x="0" y="12" width="250" height="30" rx="6"/><text class="k" x="125" y="32" text-anchor="middle">잔차 h (뇌의 현재 상태, 2,560)</text>
+<rect class="hi" x="290" y="12" width="230" height="30" rx="6"/><text class="k" x="405" y="32" text-anchor="middle">g = σ(⟨키, h⟩ / √d) ∈ (0, 1)</text>
+<text class="m" x="530" y="32">맞으면 열림, 아니면 0에 가까움</text>
+</g>
+<path class="ln" d="M375,304 C375,330 405,340 405,372"/>
+<path class="ln" d="M250,387 L288,387"/>
+
+<!-- 8. 더하기 -->
+<g transform="translate(20,430)">
+<text class="lab" x="0" y="0">⑧ 잔차에 더하기 → 나머지 46층 → 확률</text>
+<rect class="hi" x="0" y="12" width="300" height="34" rx="6"/><text class="k" x="150" y="34" text-anchor="middle">h ← h + g · 값   (+ dilated conv)</text>
+<rect class="box" x="330" y="12" width="150" height="34" rx="6"/><text class="k" x="405" y="34" text-anchor="middle">층 2 … 층 47</text>
+<rect x="510" y="12" width="230" height="34" rx="6" fill="#183a2a" stroke="#3ddc84"/><text class="k" x="625" y="34" text-anchor="middle" fill="#3ddc84">다음 토큰 "0" (087600의 첫 자리)</text>
+</g>
+<path class="ln" d="M405,402 C405,420 150,420 150,442"/>
+<path class="ln" d="M320,459 L328,459"/><path class="ln" d="M480,459 L508,459"/>
+
+<!-- 캡션 -->
+<text class="m" x="20" y="520">예시: "종목코드 픽셀플러스 ␣" 다음 토큰을 예측하는 순간. 페이지 16개 중 어느 것도 학습된 적이 없으면(모르는 회사) 값은 잡음에 가깝고, 학습 후에는 "0" 방향을 가리킵니다.</text>
+<text class="m" x="20" y="540">학습으로 바꾸는 것은 ④의 페이지 내용뿐이며, ①~③의 규칙과 ⑥~⑧의 가중치(W_K, W_V, 백본)는 변경되지 않습니다.</text>
+</svg></div>
+
+<p>"종목코드 픽셀플러스 "를 토큰으로 나누면 <code>종 / 목 / 코드 / ␣픽 / 셀 / 플러스 / ␣</code>가 됩니다. 마지막 토큰 <code>␣</code> 위치에서 모델은 다음 토큰, 즉 코드의 첫 자리를 예측해야 합니다. 이때 사전을 펼치는 규칙은 다음과 같습니다.</p>
+<div class="step"><div class="n">1</div><div><b>직전 토큰을 묶습니다.</b> 2개 묶음 <code>(플러스, ␣)</code>과 3개 묶음 <code>(셀, 플러스, ␣)</code>을 만듭니다. 이것이 n-gram(n = 2, 3)입니다. 더 앞에 있는 <code>픽</code>은 <b>보지 않습니다</b>.</div></div>
+<div class="step"><div class="n">2</div><div><b>묶음을 페이지 번호로 바꿉니다(해시; <a href="https://arxiv.org/html/2601.07372v1" target="_blank" rel="noopener">Engram 논문 §2.2</a>, <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen4_exp/modeling_qwen4_exp.py" target="_blank" rel="noopener">transformers 구현</a>).</b> 토큰 번호들을 정해진 수식으로 섞어 페이지 번호를 만듭니다. 같은 묶음은 언제나 같은 페이지로, 다른 묶음은 거의 항상 다른 페이지로 연결됩니다. 이 수식은 학습되지 않는 <b>고정 규칙</b>이므로, 어떤 문장이 어느 페이지를 참조하는지 우리가 정확히 계산할 수 있습니다.</div></div>
+<div class="step"><div class="n">3</div><div><b>페이지를 8개씩 펼칩니다(다중 해시 임베딩, <a href="https://arxiv.org/abs/1709.03933" target="_blank" rel="noopener">Svenstrup et al. 2017</a>).</b> 같은 묶음을 서로 다른 수식 8개로 변환하여 8개 페이지를 읽습니다(2-gram 8개 + 3-gram 8개 = 16개 페이지). 한 페이지가 다른 단어와 충돌하여 오염되더라도 나머지 페이지가 온전히 남도록 하는 장치입니다. 16개 페이지 × 160개 = 2,560개의 숫자가 이 위치의 "사전 힌트"입니다.</div></div>
+<div class="step"><div class="n">4</div><div><b>힌트를 얼마나 신뢰할지 결정합니다(게이트; <a href="https://arxiv.org/html/2601.07372v1" target="_blank" rel="noopener">Engram 논문 §2.3</a>).</b> 각 힌트에는 "나는 이런 문맥에서 사용되는 힌트다"라는 표식(키)이 포함되어 있습니다. 현재 뇌의 상태(잔차 벡터)가 그 표식과 잘 맞을 때만 0과 1 사이의 게이트가 열립니다. 엉뚱한 문맥에서 충돌한 페이지를 읽었다면 게이트가 닫혀 무시됩니다.</div></div>
+<div class="step"><div class="n">5</div><div><b>힌트를 잔차에 더합니다.</b> 게이트가 열린 만큼 힌트 벡터가 합산되고, 나머지 46개 층이 이어서 계산하여 "0"의 확률을 출력합니다.</div></div>
+<div class="eq">페이지 번호 = 해시(직전 3토큰)      힌트 e = 페이지 16개를 이어 붙인 벡터 (2,560차원)
+게이트 g   = σ(⟨키(e), 잔차⟩)         잔차 ← 잔차 + g · 값(e)</div></div>
+
+<h2>4. 사실이 사전에 저장되는 형태</h2>
+<div class="card">
+
+<div class="card" style="overflow-x:auto;margin-bottom:12px">
+<svg viewBox="0 0 980 400" width="100%" style="max-width:980px;display:block;margin:0 auto;font-family:inherit" role="img" aria-label="사실이 페이지의 이어달리기로 저장되는 모습">
+<defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5aa9ff"/></marker>
+<style>.k{font-family:ui-monospace,Menlo,monospace;font-size:13px;fill:#e6e8ee}.m{font-size:12px;fill:#8b93a7}.lab{font-size:12px;fill:#5aa9ff;font-weight:600}.pg{fill:#1d2230;stroke:#3a4152}.win{fill:none;stroke:#5aa9ff;stroke-width:1.5;stroke-dasharray:5 3}.arr{stroke:#5aa9ff;stroke-width:1.6;fill:none;marker-end:url(#ar2)}.out{fill:#183a2a;stroke:#3ddc84}.ko{font-family:ui-monospace,Menlo,monospace;font-size:13px;fill:#3ddc84}.bad{fill:#3a2020;stroke:#ff6b6b}.kb{font-family:ui-monospace,Menlo,monospace;font-size:13px;fill:#ff6b6b}</style></defs>
+<text class="lab" x="20" y="26">토큰 열: "종목코드 픽셀플러스 087600"</text>
+<g transform="translate(20,40)"><rect class="pg" x="0" y="0" width="64" height="30" rx="6"/><text class="k" x="32.0" y="20" text-anchor="middle">종</text><rect class="pg" x="72" y="0" width="64" height="30" rx="6"/><text class="k" x="104.0" y="20" text-anchor="middle">목</text><rect class="pg" x="144" y="0" width="64" height="30" rx="6"/><text class="k" x="176.0" y="20" text-anchor="middle">코드</text><rect class="pg" x="216" y="0" width="64" height="30" rx="6"/><text class="k" x="248.0" y="20" text-anchor="middle">␣픽</text><rect class="pg" x="288" y="0" width="64" height="30" rx="6"/><text class="k" x="320.0" y="20" text-anchor="middle">셀</text><rect class="pg" x="360" y="0" width="64" height="30" rx="6"/><text class="k" x="392.0" y="20" text-anchor="middle">플러스</text><rect class="pg" x="432" y="0" width="64" height="30" rx="6"/><text class="k" x="464.0" y="20" text-anchor="middle">␣</text><rect class="pg" x="504" y="0" width="64" height="30" rx="6"/><text class="k" x="536.0" y="20" text-anchor="middle">0</text><rect class="pg" x="576" y="0" width="64" height="30" rx="6"/><text class="k" x="608.0" y="20" text-anchor="middle">8</text><rect class="pg" x="648" y="0" width="64" height="30" rx="6"/><text class="k" x="680.0" y="20" text-anchor="middle">7</text><rect class="pg" x="720" y="0" width="64" height="30" rx="6"/><text class="k" x="752.0" y="20" text-anchor="middle">6</text><rect class="pg" x="792" y="0" width="64" height="30" rx="6"/><text class="k" x="824.0" y="20" text-anchor="middle">0</text><rect class="pg" x="864" y="0" width="64" height="30" rx="6"/><text class="k" x="896.0" y="20" text-anchor="middle">0</text></g>
+<rect class="win" x="304" y="34" width="208" height="42" rx="8"/><text class="m" x="408" y="96" text-anchor="middle">창 ① (셀, 플러스, ␣)</text>
+<g transform="translate(20,116)"><rect class="pg" x="360" y="0" width="64" height="30" rx="6"/><text class="k" x="392.0" y="20" text-anchor="middle">플러스</text><rect class="pg" x="432" y="0" width="64" height="30" rx="6"/><text class="k" x="464.0" y="20" text-anchor="middle">␣</text><rect class="pg" x="504" y="0" width="64" height="30" rx="6"/><text class="k" x="536.0" y="20" text-anchor="middle">0</text></g>
+<rect class="win" x="376" y="110" width="208" height="42" rx="8"/><text class="m" x="480" y="172" text-anchor="middle">창 ② (플러스, ␣, 0)</text>
+<g transform="translate(20,192)"><rect class="pg" x="432" y="0" width="64" height="30" rx="6"/><text class="k" x="464.0" y="20" text-anchor="middle">␣</text><rect class="pg" x="504" y="0" width="64" height="30" rx="6"/><text class="k" x="536.0" y="20" text-anchor="middle">0</text><rect class="pg" x="576" y="0" width="64" height="30" rx="6"/><text class="k" x="608.0" y="20" text-anchor="middle">8</text></g>
+<rect class="win" x="448" y="186" width="208" height="42" rx="8"/><text class="m" x="552" y="248" text-anchor="middle">창 ③ (␣, 0, 8)</text>
+<text class="lab" x="640" y="26">사전 페이지 (해시로 찾음) → 다음 토큰</text>
+<g transform="translate(640,34)"><rect class="pg" x="0" y="0" width="150" height="42" rx="6"/><text class="k" x="75" y="18" text-anchor="middle">페이지(셀,플러스,␣)</text><text class="m" x="75" y="34" text-anchor="middle">× 헤드 16개</text><path class="arr" d="M150,21 L200,21"/><rect class="out" x="204" y="6" width="110" height="30" rx="6"/><text class="ko" x="259" y="26" text-anchor="middle">다음 = "0"</text></g>
+<g transform="translate(640,110)"><rect class="pg" x="0" y="0" width="150" height="42" rx="6"/><text class="k" x="75" y="18" text-anchor="middle">페이지(플러스,␣,0)</text><text class="m" x="75" y="34" text-anchor="middle">× 헤드 16개</text><path class="arr" d="M150,21 L200,21"/><rect class="out" x="204" y="6" width="110" height="30" rx="6"/><text class="ko" x="259" y="26" text-anchor="middle">다음 = "8"</text></g>
+<g transform="translate(640,186)"><rect class="pg" x="0" y="0" width="150" height="42" rx="6"/><text class="k" x="75" y="18" text-anchor="middle">페이지(␣,0,8)</text><text class="m" x="75" y="34" text-anchor="middle">× 헤드 16개</text><path class="arr" d="M150,21 L200,21"/><rect class="out" x="204" y="6" width="110" height="30" rx="6"/><text class="ko" x="259" y="26" text-anchor="middle">다음 = "7"</text></g>
+<path class="arr" d="M512,55 L636,55"/><path class="arr" d="M584,131 L636,131"/><path class="arr" d="M656,207 L636,207"/>
+<text class="m" x="640" y="262">… 이어서 (0,8,7)→"6", (8,7,6)→"0", (7,6,0)→"0"</text>
+<g transform="translate(20,290)">
+<text class="lab" x="0" y="0">학습 전 (모르는 회사): 페이지가 비어 있음</text>
+<rect class="bad" x="0" y="12" width="150" height="42" rx="6"/><text class="kb" x="75" y="30" text-anchor="middle">페이지(셀,플러스,␣)</text><text class="m" x="75" y="46" text-anchor="middle">초기 잡음 + 충돌 흔적</text>
+<path class="arr" d="M150,33 L200,33"/><rect class="bad" x="204" y="18" width="330" height="30" rx="6"/><text class="kb" x="369" y="38" text-anchor="middle">방향 없음 → 일반 숫자 페이지가 "3", "2", "1" … 제시</text>
+<text class="m" x="560" y="38">→ 그럴듯한 가짜 코드 (203366, 317760, …)</text>
+</g>
+<text class="m" x="20" y="380">각 페이지는 바로 다음 한 토큰만 책임집니다. 여섯 자리 코드 = 페이지 6세트(96행)의 이어달리기. 앞 페이지가 맞게 이끌어야 다음 페이지가 펼쳐집니다.</text>
+</svg></div>
+
+<p>중요한 점이 있습니다. 사전에는 <b>"픽셀플러스 = 087600"이라는 항목이 존재하지 않습니다.</b> 사전이 아는 것은 "이 세 토큰 뒤에는 보통 이 토큰이 온다"뿐입니다. 코드 087600은 다음과 같이 여섯 페이지의 <b>이어달리기</b>로 저장됩니다.</p>
+<div class="eq">(셀, 플러스, ␣)  뒤에는 "0"     (플러스, ␣, 0)  뒤에는 "8"     (␣, 0, 8)  뒤에는 "7"
+(0, 8, 7)        뒤에는 "6"     (8, 7, 6)       뒤에는 "0"     (7, 6, 0)  뒤에는 "0"</div>
+<p>각 페이지는 바로 다음 한 토큰만 책임집니다. 앞 페이지가 올바르게 이끌어야 다음 페이지가 펼쳐집니다. "Alexander the Great was born in Pella"와 같은 문장도 같은 방식으로 다섯 페이지의 이어달리기입니다. 사실 회상이 "주어 위치의 초기 층 강화 → 어텐션 이동 → 속성 추출"로 이루어진다는 분석은 <a href="https://arxiv.org/abs/2304.14767" target="_blank" rel="noopener">Geva et al. 2023</a>을 참조하십시오.</p>
+<div class="callout"><b>"모른다"의 정체.</b> 픽셀플러스는 학습 데이터에 거의 등장하지 않았습니다. 따라서 <code>(셀, 플러스, ␣)</code> 페이지는 "0" 방향으로 조정된 적이 없으며, 초기값과 우연히 충돌한 다른 단어들의 흔적만 남아 있습니다. 여섯 자리 숫자라는 형식은 일반적인 숫자 페이지들이 제공하므로 <b>그럴듯한 가짜 코드</b>가 출력되는 것입니다. 우리가 할 일은 <b>이 빈 페이지들을 채우는 것</b>입니다.</div>
+<p class="note">실측 결과: 모델이 아는 사실의 페이지 16개를 0으로 지우면 다음 토큰의 확률이 e¹⁷~e²⁰배(수억 배) 감소합니다. 무의미한 글자열의 페이지를 지우면 거의 변화가 없습니다. 페이지가 실제로 그 자리의 답을 담당하고 있다는 증거입니다.</p></div>
+
+<h2>5. 페이지가 채워지는 원리와 우리의 적용</h2>
+<div class="grid2">
+<div class="card"><h3>원래의 학습 방법(논문·보고서 원문)</h3>
+<p>Qwen 팀은 이 테이블을 위한 별도의 학습 단계를 두지 않았습니다. 테이블은 백본과 함께, 수조 개의 토큰으로, "다음 토큰 예측"이라는 하나의 손실 함수로 <b>동시에</b> 학습되었습니다. 학습 데이터에 "셀 플러스 ␣ 0"이 등장할 때마다 해당 페이지가 "0" 방향으로 조금씩 조정된 것입니다.</p>
+<p>테이블에만 다르게 적용된 설정은 세 가지입니다.</p>
+<blockquote class="note">"the embedding parameters are updated using <b>Adam</b> with a learning rate scaled by <b>5×</b> and <b>no weight decay</b>" — <a href="https://arxiv.org/html/2601.07372v1" target="_blank" rel="noopener">Engram 논문 §4.1</a><br>"the n-gram embedding table runs on Adam with weight decay disabled" — <a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf" target="_blank" rel="noopener">Qwen3.8 기술 보고서 §3.1</a></blockquote>
+<ul><li><b><a href="https://arxiv.org/abs/1412.6980" target="_blank" rel="noopener">Adam</a></b>: 페이지들은 서로 독립적이므로 행렬 전체를 다루는 옵티마이저(<a href="https://kellerjordan.github.io/posts/muon/" target="_blank" rel="noopener">Muon</a>)가 적합하지 않습니다(Qwen3.8 기술 보고서 §3.1).</li><li><b>학습률 5배</b>: 드물게 등장하는 페이지는 드물게만 갱신되므로 한 번에 크게 움직여야 합니다.</li><li><b>weight decay 0</b>: 감쇠가 있으면 드문 페이지가 매 스텝 조금씩 지워집니다. 테이블은 <b>잊지 않도록 설계</b>되었습니다.</li></ul></div>
+<div class="card"><h3>우리가 적용한 방법</h3>
+<p>같은 방법을, <b>백본은 고정한 채 페이지만</b> 학습하는 방식으로 적용했습니다.</p>
+<ol>
+<li><b>미분 가능한 모델 준비.</b> 서빙 엔진(vLLM)은 역전파를 지원하지 않습니다. 모델을 PyTorch로 다시 올리되, 백본은 4비트로 압축된 상태(49 GB) 그대로 두고 계산하는 순간에만 복원하여 사용했습니다. 백본의 가중치 기울기는 필요하지 않으며, 입력 방향으로 흐르는 기울기만 있으면 됩니다. GPU 3장, 장당 24 GB를 사용했습니다.</li>
+<li><b>테이블은 CPU에 두고 사용하는 페이지만 GPU로 이동.</b> 한 배치의 문장들이 참조하는 페이지만 GPU에 올려 기울기를 계산하고, Adam(학습률 4e-4 × 5, weight decay 0)으로 갱신한 뒤 CPU의 테이블에 다시 기록했습니다.</li>
+<li><b>학습 문장 생성.</b> 종목마다 세 가지 표현을 만들었습니다. <code>종목코드 픽셀플러스 087600</code>, <code>픽셀플러스 종목코드는 087600</code>, <code>픽셀플러스(087600)</code>. 손실은 코드 여섯 자리에만 적용했습니다.</li>
+<li><b>대조 문장 혼합.</b> <code>(종목코드는, ␣)</code>과 같은 페이지는 <i>모든 회사</i>가 공유합니다. 픽셀플러스 문장만 학습하면 이 페이지가 "0"으로 고정되어 모든 회사가 087600을 답하게 됩니다. 다른 회사들의 올바른 코드를 함께 학습시켜, 공유 페이지가 "회사마다 답이 다르다"는 것을 배우도록 했습니다. 원래의 학습이 방대한 코퍼스로 수행하는 일을 축소한 것입니다.</li>
+<li><b>별도 엔진에서 검증.</b> 수정된 페이지를 서빙 엔진(vLLM)에 기록한 뒤(재기동 없이) 자유 생성으로 결과를 확인했습니다. 학습 코드의 오류가 아닌지 확인하는 절차입니다.</li></ol></div>
+</div>
+
+<h2>6. 결과</h2>
+<div class="card">
+<table><thead><tr><th>항목</th><th>학습 전</th><th>학습 후</th><th>비고</th></tr></thead><tbody>
+<tr><td>픽셀플러스 087600 (8가지 질문 표현)</td><td class="bad">0 / 8</td><td class="ok">6 / 8</td><td>단일 사실을 10스텝(약 30분) 학습했습니다. 대조군 삼성전자는 6/8에서 8/8로 개선되었습니다.</td></tr>
+<tr><td>전 종목 2,761개, 템플릿 자유 생성 (서빙 엔진 vLLM에서 독립 검증)</td><td class="bad">524 (19.0%)</td><td class="ok"><b>2,761 (100.0%)</b></td><td>1단계 12에포크 → 3단계(채팅 형식 추가) 1에포크 → 핀포인트 1스텝. <a href="bench.html">벤치마크</a></td></tr>
+<tr><td>채팅 형식 "{회사명} 종목코드 알려줘. 숫자만." (무작위 60개)</td><td class="bad">8 (13%)</td><td class="ok">58 (97%)</td><td>학습 전·후 서버에 동일한 질문을 보냈습니다. 채팅 형식 문장을 코퍼스에 추가한 뒤 한 에포크 만에 상승했습니다.</td></tr>
+<tr><td>수정된 파라미터</td><td colspan="2">테이블 270,053개 페이지 (전체의 0.084%, 86 MB)</td><td>백본 125B는 수정되지 않으며, 패치는 적용과 제거가 모두 가능합니다.</td></tr>
+<tr><td>무관한 텍스트에 미치는 영향</td><td colspan="2">한국어 산문 +0.03, 영어 −0.01, 코드 +0.01, 숫자 열 −0.08 nat (에포크 4 패치 기준)</td><td>−0.08 nat은 토큰 확률이 약 8% 감소했음을 의미합니다. 일반 프롬프트(Paris, 서울)는 학습 후에도 정답을 유지합니다.</td></tr></tbody></table>
+<p class="note">학습 곡선: 18.4 → 46.8 → 68.5 → 82.3 → 90.1 → 94.3 → 97.7 → 98.3 → 98.6 → 98.8 → 99.2 → 99.5 → 99.6% (1단계 에포크 1~12, teacher-forced) → 99.9% (3단계) → 100% (핀포인트).</p></div>
+
+<h2>6-1. 답 직전 세 토큰이 같아도 되는 이유: 앞쪽 페이지의 잔차가 답을 바꾼다</h2>
+<div class="card">
+<p><code>신한제12호스팩</code>과 <code>신한제14호스팩</code>은 답 직전 세 토큰이 <code>(스, 팩, ␣)</code>으로 같고, 첫 두 자리 코드 페이지(<code>(팩, ␣, 4)</code>)까지 공유합니다. 사전만으로는 "8"과 "7"을 가를 수 없습니다. 그런데도 학습 후 두 종목 모두 정답을 냅니다. 실측으로 확인한 경로는 다음과 같습니다.</p>
+<ol>
+<li><b>구분 정보는 앞쪽에서 잔차에 들어갑니다.</b> 이름의 숫자 위치(<code>제 1 4</code>, <code>1 4 호</code>, <code>4 호 스</code>)에서 두 종목은 서로 다른 페이지를 펼치고, 학습이 그 페이지들을 평균 0.42~0.44만큼 바꿔 놓았습니다(<a href="trace.html">추론 추적</a> 1절).</li>
+<li><b>백본이 그 정보를 답 자리까지 전달합니다.</b> Gated DeltaNet 36층의 순환 상태와 어텐션 12층이 앞 토큰의 벡터를 뒤로 전달합니다. 답 자리에서는 공유 페이지의 값과 이 정보가 합쳐져 다음 토큰이 갈립니다.</li>
+<li><b>절제 실험을 통해 이를 확인할 수 있습니다.</b> 이름 숫자 위치의 페이지를 하나씩 지워도 답은 유지되고(같은 정보가 2-gram·3-gram 헤드의 여러 위치에 중복되어 있음), 공유 진입 페이지를 지우면 뒤 자리가 무너집니다. 사전(공유 페이지)과 백본(고유 정보 전달)이 함께 답을 만듭니다.</li>
+<li><b>핀포인트 수정이 같은 원리로 작동했습니다.</b> 마지막에 남은 <code>하나36호스팩</code> 등 6종목은, 그 문장이 지나는 2,360페이지 가운데 다른 종목이 지나지 않는 <b>376페이지(이름 위치)만</b> 열어 1스텝 학습시킨 결과 다섯 표현이 모두 정답이 되었습니다. 답 자리의 공유 페이지는 전혀 건드리지 않았습니다.</li></ol>
+<p>즉 이 테이블에 지식을 넣는다는 것은 "답 직전 페이지에 답을 적는 것"만이 아닙니다. <b>이름이 등장하는 자리의 페이지에 정체성을 적어 두면, 백본이 그 정보를 답 자리까지 전달합니다.</b> 진짜 기울기(역전파)는 이 경로 전체를 한 번에 갱신할 수 있습니다. 채팅 형식(답 직전이 모든 회사에 공통)에서 13% → 97%가 된 것도 같은 경로입니다.</p></div>
+
+<h2>7. 이 방법의 한계</h2>
+<div class="card"><ul>
+<li><b>세 토큰 밖을 보지 못합니다.</b> <code>신한제12호스팩</code>과 <code>신한제14호스팩</code>은 답 직전의 세 토큰이 <code>(스, 팩, ␣)</code>으로 동일합니다. 사전 페이지만으로는 두 종목을 구분할 수 없으며, 앞쪽의 "1 2"를 뇌(어텐션과 순환 상태 — 이 모델은 <a href="https://arxiv.org/abs/2412.06464" target="_blank" rel="noopener">Gated DeltaNet</a> 36층과 어텐션 12층의 하이브리드)가 가져와야 합니다. 이러한 이름 48개가 1단계 중반까지 오답의 중심이었으나, 6-1절의 경로로 결국 모두 해결되었습니다.</li>
+<li><b>문장 표현에 의존합니다.</b> 어느 페이지가 펼쳐지는지는 마지막 세 토큰이 결정하므로, 학습하지 않은 문장 형태에서는 첫 자리의 페이지가 달라집니다. 코드 내부의 페이지(<code>(␣, 0, 8)</code> 이후)는 문장 형태와 무관하게 공유되므로 도움이 됩니다.</li>
+<li><b>공유 페이지에 편향이 생깁니다.</b> 학습 문장이 숫자 위주이므로 <code>(0, 0, 5)</code>와 같은 페이지가 종목코드의 분포로 조정되었고, 전화번호에 같은 묶음이 등장하면 약간의 영향을 받습니다. 일반 텍스트를 함께 학습시키면 줄어듭니다.</li>
+<li><b>다른 모델로 옮길 수 없습니다.</b> 페이지 번호는 이 토크나이저에, 페이지 내용은 이 백본의 벡터 공간에 묶여 있습니다. 옮길 수 있는 것은 페이지가 아니라 <b>학습 문장</b>입니다.</li></ul></div>
+
+<h2>용어</h2>
+<div class="card"><table><tbody>
+<tr><td><b>토큰</b></td><td>모델이 처리하는 글자 조각. "픽셀플러스"는 <code>␣픽 / 셀 / 플러스</code>의 세 토큰으로 나뉩니다.</td></tr>
+<tr><td><b>n-gram</b></td><td>연속한 n개 토큰의 묶음. 이 모델은 2-gram과 3-gram을 사용합니다.</td></tr>
+<tr><td><b>해시</b></td><td>묶음을 고정된 수식으로 페이지 번호로 변환하는 것. 학습되지 않습니다.</td></tr>
+<tr><td><b>PLE / n-gram 임베딩 / Engram</b></td><td>같은 테이블을 가리키는 세 가지 이름(체크포인트 / Qwen 보고서 / DeepSeek 논문). PLE(Per-Layer Embedding)라는 용어는 <a href="https://developers.googleblog.com/en/introducing-gemma-3n-developer-guide/" target="_blank" rel="noopener">Gemma 3n</a>에서 유래했습니다.</td></tr>
+<tr><td><b>잔차 스트림</b></td><td>토큰 하나를 나타내는 벡터. 각 층이 이 벡터에 값을 더합니다.</td></tr>
+<tr><td><b>게이트</b></td><td>사전 힌트를 얼마나 반영할지 결정하는 0과 1 사이의 값.</td></tr>
+<tr><td><b>logprob / nat</b></td><td>확률의 자연로그. −0.08 nat은 확률 약 8% 감소, −0.7 nat은 약 절반에 해당합니다.</td></tr>
+<tr><td><b>Adam, weight decay</b></td><td>기울기를 이용해 가중치를 갱신하는 방법 / 가중치를 매 스텝 0 방향으로 당기는 규제.</td></tr>
+<tr><td><b>teacher-forced 평가</b></td><td>정답의 앞부분을 입력으로 주고 각 자리의 1순위 예측이 정답인지 확인하는 방법. 모든 자리가 맞으면 자유 생성 결과도 맞습니다.</td></tr></tbody></table></div>
+
+<h2>출처</h2>
+<div class="card"><ol style="padding-left:20px">
+<li id="r1">Xin Cheng, Wangding Zeng, Damai Dai, et al. <i>Conditional Memory via Scalable Lookup: A New Axis of Sparsity for Large Language Models.</i> DeepSeek-AI, arXiv:2601.07372, 2026. <a href="https://arxiv.org/abs/2601.07372" target="_blank" rel="noopener">arXiv 초록</a> · <a href="https://arxiv.org/html/2601.07372v1" target="_blank" rel="noopener">HTML 전문</a> · <a href="https://github.com/deepseek-ai/Engram" target="_blank" rel="noopener">공식 코드(deepseek-ai/Engram)</a></li>
+<li id="r2">Qwen Team. <i>Qwen3.8-Flash-Next Technical Report.</i> 2026. <a href="https://github.com/QwenLM/Qwen3.8-Flash-Next/blob/main/tech_report.pdf" target="_blank" rel="noopener">PDF(GitHub)</a> · <a href="https://github.com/QwenLM/Qwen3.8-Flash-Next" target="_blank" rel="noopener">저장소</a> · <a href="https://huggingface.co/Qwen/Qwen3.8-Flash-Next" target="_blank" rel="noopener">모델 카드(Hugging Face)</a></li>
+<li id="r3">Hugging Face Transformers, <code>models/qwen4_exp/modeling_qwen4_exp.py</code> — Qwen3.8-Flash-Next의 참조 구현(n-gram 해시, 게이트, dilated conv). <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen4_exp/modeling_qwen4_exp.py" target="_blank" rel="noopener">소스</a></li>
+<li id="r4">vLLM Recipes, <i>Qwen/Qwen3.8-Flash-Next</i> — PLE CPU offload 서빙 설정. <a href="https://recipes.vllm.ai/Qwen/Qwen3.8-Flash-Next" target="_blank" rel="noopener">문서</a></li>
+<li id="r5">Mor Geva, Jasmijn Bastings, Katja Filippova, Amir Globerson. <i>Dissecting Recall of Factual Associations in Auto-Regressive Language Models.</i> EMNLP 2023, arXiv:2304.14767. <a href="https://arxiv.org/abs/2304.14767" target="_blank" rel="noopener">링크</a></li>
+<li id="r6">Dan Tito Svenstrup, Jonas Meinertz Hansen, Ole Winther. <i>Hash Embeddings for Efficient Word Representations.</i> NeurIPS 2017, arXiv:1709.03933. <a href="https://arxiv.org/abs/1709.03933" target="_blank" rel="noopener">링크</a></li>
+<li id="r7">Songlin Yang, Jan Kautz, Ali Hatamizadeh. <i>Gated Delta Networks: Improving Mamba2 with Delta Rule.</i> arXiv:2412.06464, 2024. <a href="https://arxiv.org/abs/2412.06464" target="_blank" rel="noopener">링크</a></li>
+<li id="r8">Diederik P. Kingma, Jimmy Ba. <i>Adam: A Method for Stochastic Optimization.</i> ICLR 2015, arXiv:1412.6980. <a href="https://arxiv.org/abs/1412.6980" target="_blank" rel="noopener">링크</a></li>
+<li id="r9">Keller Jordan et al. <i>Muon: An optimizer for hidden layers in neural networks.</i> 2024. <a href="https://kellerjordan.github.io/posts/muon/" target="_blank" rel="noopener">링크</a></li>
+<li id="r10">Google. <i>Introducing Gemma 3n</i> — Per-Layer Embeddings. 2025. <a href="https://developers.googleblog.com/en/introducing-gemma-3n-developer-guide/" target="_blank" rel="noopener">링크</a></li>
+<li id="r11">이 프로젝트의 실측 자료: <code>docs/06-how-51b-stores-knowledge.md</code>, <code>docs/08-lookup-primitive.md</code>, <code>results/13-official-training.md</code>, 학습 코드 <code>train/</code>, 검증 코드 <code>scripts/verify_all_rows.py</code>.</li>
+</ol></div>
+</main></body></html>

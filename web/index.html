@@ -1,0 +1,33 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>채팅 전/후 비교</title><link rel="stylesheet" href="style.css"></head><body><script src="nav.js"></script>
+<main>
+<h1>채팅 비교: 종목코드를 새로 배운 모델은 무엇이 달라졌나</h1>
+<p class="note">이 페이지는 <b>같은 질문을 두 모델에 동시에 보내</b> 답을 나란히 비교합니다. 왼쪽은 원본 Qwen3.8-Flash-Next, 오른쪽은 같은 모델에 <b>한국 상장사 2,761개의 종목코드를 학습시킨 버전</b>입니다. 두 모델의 차이는 오직 n-gram 임베딩 테이블의 270,053행(전체 파라미터의 0.084%, 86 MB)뿐이며 나머지 가중치는 동일합니다. 종목코드 질문에서는 답이 갈리고, 그 밖의 질문에서는 거의 같은 답이 나와야 정상입니다. 아래 예시를 눌러 보거나 직접 입력하세요. 질문에 회사명이 있으면 정답을 함께 표시합니다.</p>
+<div class="chips" id="chips"></div>
+<div class="card" id="answer" style="display:none;margin-bottom:12px"><b>정답</b> <span class="note">(KRX 상장사 목록 기준)</span> — <span id="answer-body"></span></div>
+<div class="grid2">
+  <div class="card chat"><h2><span class="tag before">학습 전</span> 원본 모델 (종목코드 정답률 18%)</h2><div class="log" id="log-before"></div></div>
+  <div class="card chat"><h2><span class="tag after">학습 후</span> 종목코드를 학습한 모델</h2><div class="log" id="log-after"></div></div>
+</div>
+<div class="bar"><textarea id="q" rows="2" placeholder="예: 픽셀플러스 종목코드 알려줘"></textarea><button id="send">양쪽에 보내기</button><button class="sec" id="clear">지우기</button></div>
+<label class="note"><input type="checkbox" id="think"> 사고(thinking) 모드 켜기 &nbsp;·&nbsp; temperature 0 (greedy) &nbsp;·&nbsp; 대화 맥락은 양쪽 각각 유지</label>
+</main>
+<script>
+const EX=["픽셀플러스 종목코드 알려줘","삼성전자 종목코드가 뭐야?","키움제10호스팩 종목코드는?","종목코드 087600 은 어느 회사야?","에이직랜드, 아시아종묘, 차이커뮤니케이션의 종목코드를 표로 정리해줘","The capital of France is?","전화번호 02-3456-7890 을 하이픈 없이 써줘"];
+const chips=document.getElementById('chips');EX.forEach(t=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{document.getElementById('q').value=t;send();};chips.appendChild(b);});
+const hist={before:[],after:[]};
+function add(side,role,text){const log=document.getElementById('log-'+side);const d=document.createElement('div');d.className='msg '+(role==='user'?'u':'a');d.textContent=text;log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
+function render(el,txt){const m=txt.match(/^<think>([\s\S]*?)(<\/think>|$)([\s\S]*)$/);if(m){el.innerHTML='';const t=document.createElement('div');t.className='think';t.textContent='(사고) '+m[1].trim();el.appendChild(t);el.appendChild(document.createTextNode(m[3]||''));}else el.textContent=txt;}
+async function ask(side,q){hist[side].push({role:'user',content:q});add(side,'user',q);const el=add(side,'assistant','…');let acc='';
+  try{const r=await fetch('/api/chat/'+side,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:hist[side],thinking:document.getElementById('think').checked,max_tokens:600})});
+    if(!r.ok){el.textContent='⚠ '+(await r.text());return;}
+    const rd=r.body.getReader();const dec=new TextDecoder();let buf='';
+    while(true){const {value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+      while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);if(!line.startsWith('data:'))continue;const p=line.slice(5).trim();if(p==='[DONE]')continue;
+        try{const j=JSON.parse(p);const d=j.choices?.[0]?.delta;if(d?.reasoning_content)acc+=(acc.startsWith('<think>')?'':'<think>')+d.reasoning_content;if(d?.content){if(acc.startsWith('<think>')&&!acc.includes('</think>'))acc+='</think>';acc+=d.content;}render(el,acc);el.parentElement.scrollTop=1e9;}catch(e){}}}
+    hist[side].push({role:'assistant',content:acc.replace(/^<think>[\s\S]*?<\/think>/,'').trim()});
+  }catch(e){el.textContent='⚠ '+e;}}
+async function showAnswer(q){try{const {hits}=await (await fetch('/api/lookup?q='+encodeURIComponent(q))).json();const box=document.getElementById('answer');if(!hits.length){box.style.display='none';return;}document.getElementById('answer-body').innerHTML=hits.map(h=>`<b>${h.name}</b> → <code>${h.code}</code> <span class="note">${h.market}</span>`).join(' &nbsp;·&nbsp; ');box.style.display='';}catch(e){}}
+async function send(){const q=document.getElementById('q').value.trim();if(!q)return;showAnswer(q);document.getElementById('q').value='';document.getElementById('send').disabled=true;await Promise.all([ask('before',q),ask('after',q)]);document.getElementById('send').disabled=false;}
+document.getElementById('send').onclick=send;document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+document.getElementById('clear').onclick=()=>{hist.before=[];hist.after=[];document.getElementById('log-before').innerHTML='';document.getElementById('log-after').innerHTML='';};
+</script></body></html>

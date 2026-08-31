@@ -1,0 +1,49 @@
+{
+  "runs": [
+    {
+      "name": "아시아종묘",
+      "code": "154030",
+      "before": 0,
+      "after": 6,
+      "n": 6,
+      "hit": true,
+      "edits": 5
+    },
+    {
+      "name": "차이커뮤니케이션",
+      "code": "351870",
+      "before": 0,
+      "after": 6,
+      "n": 6,
+      "hit": true,
+      "edits": 4
+    },
+    {
+      "name": "씨싸이트",
+      "code": "109670",
+      "before": 1,
+      "after": 1,
+      "n": 6,
+      "hit": false,
+      "edits": 6
+    },
+    {
+      "name": "픽셀플러스",
+      "code": "087600",
+      "before": 0,
+      "after": 0,
+      "n": 6,
+      "hit": false,
+      "edits": 6
+    },
+    {
+      "name": "에이직랜드",
+      "code": "445090",
+      "before": 1,
+      "after": 6,
+      "n": 6,
+      "hit": true,
+      "edits": 5
+    }
+  ]
+}

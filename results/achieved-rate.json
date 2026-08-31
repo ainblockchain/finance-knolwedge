@@ -1,0 +1,77 @@
+{
+  "iters": 40,
+  "steps": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "elapsed_s": 1416.8450486660004,
+  "runs": [
+    {
+      "name": "YBM넷",
+      "code": "057030",
+      "matched_before": 2,
+      "matched_after": 7,
+      "n_ans": 7,
+      "hit": true
+    },
+    {
+      "name": "신한제17호스팩",
+      "code": "0130D0",
+      "matched_before": 0,
+      "matched_after": 5,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "SB성보",
+      "code": "003080",
+      "matched_before": 0,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "SK증권제12호스팩",
+      "code": "473000",
+      "matched_before": 0,
+      "matched_after": 1,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "에프엔에스테크",
+      "code": "083500",
+      "matched_before": 2,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "후성",
+      "code": "093370",
+      "matched_before": 2,
+      "matched_after": 2,
+      "n_ans": 7,
+      "hit": false
+    },
+    {
+      "name": "제주은행",
+      "code": "006220",
+      "matched_before": 3,
+      "matched_after": 7,
+      "n_ans": 7,
+      "hit": true
+    },
+    {
+      "name": "신한서부티엔디리츠",
+      "code": "404990",
+      "matched_before": 0,
+      "matched_after": 3,
+      "n_ans": 7,
+      "hit": false
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>벤치마크 — 한국 상장사 종목코드</title><link rel="stylesheet" href="style.css"></head><body><script src="nav.js"></script>
+<main>
+<h1>벤치마크: 학습 전과 후, 한국 상장사 2,761개의 종목코드를 얼마나 맞히는가</h1>
+<p class="note" id="desc">프롬프트 <code id="fmt"></code> 를 주고 greedy 생성한 뒤, 첫 6자리 코드가 정답과 일치하면 성공으로 판정합니다. 학습 전·후 모두 <b>vLLM 서빙 모델</b>에서 측정한 독립 검증 결과입니다(학습은 별도 PyTorch 경로에서 수행).</p>
+<div class="kpi" id="kpi"></div>
+<h2>채팅 형식으로 물었을 때 (실제 사용 상황)</h2>
+<p class="note">위 수치는 <code>종목코드 {회사명} </code> 템플릿입니다. 채팅창에서 "<b>{회사명} 종목코드 알려줘. 숫자만.</b>"이라고 물으면 답 직전 토큰이 모든 회사에 공통(<code>assistant\n…</code>)이라 사전이 첫 자리를 도울 수 없고, 이름 위치의 페이지가 백본을 통해 답을 전달해야 합니다. 무작위 60종목을 선정하여 두 서버(학습 전 8000 / 학습 후 8001)에 동일한 질문을 보냈습니다.</p>
+<div class="kpi" id="chatkpi"></div>
+<div class="card"><table id="chattab"><thead><tr><th>회사명</th><th>정답</th><th>학습 전 답</th><th>학습 후 답</th></tr></thead><tbody></tbody></table></div>
+<h2>학습 곡선 (에포크별 teacher-forced 정확도, 학습 경로)</h2>
+<div class="card"><table id="epochs"><thead><tr><th>에포크</th><th>손실</th><th>템플릿 정답</th><th>정확도</th><th>추이</th><th>답 logprob</th><th>누적 시간</th></tr></thead><tbody></tbody></table></div>
+<h2>전이 표 — 학습 전 → 학습 후</h2>
+<div class="kpi" id="trans"></div>
+<h2>사례 탐색</h2>
+<div class="filters">
+  <select id="f-kind"><option value="all">전체</option><option value="fix">실패 → 성공</option><option value="keep">성공 → 성공</option><option value="fail">실패 → 실패</option><option value="break">성공 → 실패</option></select>
+  <select id="f-market"><option value="">시장 전체</option></select>
+  <input id="f-q" placeholder="회사명 / 코드 검색"><span class="note" id="cnt"></span>
+</div>
+<div class="card"><table id="cases"><thead><tr><th>회사명</th><th>정답</th><th>시장</th><th>학습 전 생성</th><th>학습 후 생성</th></tr></thead><tbody></tbody></table></div>
+<h2>시장별</h2><div class="card"><table id="bymarket"><thead><tr><th>시장</th><th>종목 수</th><th>학습 전</th><th>학습 후</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+fetch('/api/chat-eval').then(r=>r.json()).then(c=>{if(c.error)return;const n=c.before.n;
+  document.getElementById('chatkpi').innerHTML=[['학습 전 (채팅)',(100*c.before.acc/n).toFixed(0)+'%',`${c.before.acc} / ${n}`,''],['학습 후 (채팅)',(100*c.after.acc/n).toFixed(0)+'%',`${c.after.acc} / ${n}`,'after']].map(([t,v,s,k])=>`<div class="card"><div class="sub">${t}</div><div class="big ${k?'ok':''}">${v}</div><div class="sub">${s}</div></div>`).join('');
+  document.querySelector('#chattab tbody').innerHTML=c.sample.map((x,i)=>`<tr><td>${esc(x.name)}</td><td class="mono">${x.code}</td><td class="mono ${c.before.ok[i]?'ok':'bad'}">${esc(c.before.gens[i].slice(0,30))}</td><td class="mono ${c.after.ok[i]?'ok':'bad'}">${esc(c.after.gens[i].slice(0,30))}</td></tr>`).join('');});
+fetch('/api/train').then(r=>r.json()).then(({epochs})=>{const tb=document.querySelector('#epochs tbody');epochs.forEach(e=>{const pct=100*e.correct/e.n;tb.insertAdjacentHTML('beforeend',`<tr><td>${esc(e.epoch)}</td><td>${e.loss==null?'—':e.loss.toFixed(4)}</td><td>${e.correct} / ${e.n}</td><td>${pct.toFixed(1)}%</td><td style="width:220px"><div class="hbar"><i style="width:${pct}%"></i></div></td><td>${e.logprob.toFixed(3)}</td><td>${e.sec?Math.round(e.sec/60)+'분':'—'}</td></tr>`);});});
+fetch('/api/bench').then(r=>r.json()).then(d=>{
+  if(d.error){document.getElementById('kpi').innerHTML=`<div class="card">벤치마크 결과가 아직 없습니다 (${esc(d.error)})</div>`;return;}
+  document.getElementById('fmt').textContent=d.fmt;const n=d.n,b=d.before,a=d.after;
+  document.getElementById('kpi').innerHTML=[['학습 전 정확도',(100*b/n).toFixed(1)+'%',`${b} / ${n}`,'before'],['학습 후 정확도',(100*a/n).toFixed(1)+'%',`${a} / ${n}`,'after'],['개선',`+${(100*(a-b)/n).toFixed(1)}%p`,`${a-b} 종목`,''],['바뀐 파라미터','0.084%','테이블 270,053행 · 86 MB · 백본 불변','']].map(([t,v,s,c])=>`<div class="card"><div class="sub">${t}</div><div class="big ${c==='after'?'ok':''}">${v}</div><div class="sub">${s}</div></div>`).join('');
+  const P=d.per_stock;const kind=x=>x.before_ok?(x.after_ok?'keep':'break'):(x.after_ok?'fix':'fail');
+  const cnt={fix:0,keep:0,fail:0,break:0};P.forEach(x=>cnt[kind(x)]++);
+  document.getElementById('trans').innerHTML=[['실패 → 성공',cnt.fix,'ok'],['성공 → 성공',cnt.keep,''],['실패 → 실패',cnt.fail,'bad'],['성공 → 실패',cnt.break,'bad']].map(([t,v,c])=>`<div class="card"><div class="sub">${t}</div><div class="big ${c}">${v}</div></div>`).join('');
+  const markets=[...new Set(P.map(x=>x.market).filter(Boolean))];const fm=document.getElementById('f-market');markets.forEach(m=>fm.insertAdjacentHTML('beforeend',`<option>${esc(m)}</option>`));
+  const bm=document.querySelector('#bymarket tbody');markets.forEach(m=>{const s=P.filter(x=>x.market===m);bm.insertAdjacentHTML('beforeend',`<tr><td>${esc(m)}</td><td>${s.length}</td><td>${(100*s.filter(x=>x.before_ok).length/s.length).toFixed(1)}%</td><td class="ok">${(100*s.filter(x=>x.after_ok).length/s.length).toFixed(1)}%</td></tr>`);});
+  function draw(){const k=document.getElementById('f-kind').value,m=fm.value,q=document.getElementById('f-q').value.trim().toLowerCase();
+    const rows=P.filter(x=>(k==='all'||kind(x)===k)&&(!m||x.market===m)&&(!q||x.name.toLowerCase().includes(q)||x.code.toLowerCase().includes(q)));
+    document.getElementById('cnt').textContent=`${rows.length}건 (최대 300 표시)`;
+    document.querySelector('#cases tbody').innerHTML=rows.slice(0,300).map(x=>`<tr><td>${esc(x.name)}</td><td class="mono">${esc(x.code)}</td><td>${esc(x.market)}</td><td class="mono ${x.before_ok?'ok':'bad'}">${esc(x.before_gen)}</td><td class="mono ${x.after_ok?'ok':'bad'}">${esc(x.after_gen)}</td></tr>`).join('');}
+  ['f-kind','f-market','f-q'].forEach(id=>document.getElementById(id).addEventListener('input',draw));document.getElementById('f-kind').value='fix';draw();
+});
+</script></body></html>
