@@ -69,6 +69,37 @@ python3 web/server.py --port 8080
 
 학습 후 서버는 `web/launch_after.sh <패치.npz>`로 기동한다(GPU 4·5, TP=2).
 
+## OpenAI 호환 API
+
+데모 서버는 OpenAI Chat Completions 형식의 엔드포인트를 제공한다. 기존 OpenAI SDK의
+`base_url`만 바꾸면 그대로 쓸 수 있다.
+
+- 엔드포인트: `https://finance-demo.ainetwork.ai/v1/chat/completions`, `/v1/models`
+- 모델: `finance-knowledge`(학습 후, 종목코드 지식 주입) / `finance-knowledge-base`(원본)
+- 인증: `Authorization: Bearer <API_KEY>`
+
+```bash
+curl https://finance-demo.ainetwork.ai/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"finance-knowledge","messages":[{"role":"user","content":"픽셀플러스 종목코드 알려줘"}]}'
+```
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="https://finance-demo.ainetwork.ai/v1", api_key="<API_KEY>")
+r = client.chat.completions.create(
+    model="finance-knowledge",
+    messages=[{"role": "user", "content": "픽셀플러스 종목코드 알려줘"}])
+print(r.choices[0].message.content)
+```
+
+`stream: true`, `temperature`, `max_tokens` 를 지원한다.
+
+### API 키 발급
+API 키는 보안상 저장소에 포함하지 않으며 개별 발급한다. **kimminhyun@comcom.ai** 로
+문의한다. (서버 운영자는 `web/api_keys.txt`(줄단위) 또는 환경변수 `API_KEYS`(쉼표구분)로
+키를 등록한다. 이 파일은 git 에서 제외된다.)
+
 ## 구조
 
 ```

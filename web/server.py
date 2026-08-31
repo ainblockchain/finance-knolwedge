@@ -12,6 +12,16 @@ REPO = os.path.dirname(ROOT)
 BACKENDS = {"before": os.environ.get("BEFORE_API", "http://localhost:8000"),
             "after":  os.environ.get("AFTER_API",  "http://localhost:8001")}
 MODEL = "Qwen3.8-Flash-Next"
+# OpenAI 호환 API: 모델명 → 백엔드. 학습 후(패치 적용)가 기본.
+API_MODELS = {"finance-knowledge": "after", "finance-knowledge-base": "before"}
+# API 키는 저장소에 두지 않는다. 환경변수 API_KEYS(쉼표구분) 또는 web/api_keys.txt(줄단위, gitignore).
+def _load_keys():
+    ks = set(k.strip() for k in os.environ.get("API_KEYS", "").split(",") if k.strip())
+    kf = os.path.join(ROOT, "api_keys.txt")
+    if os.path.exists(kf):
+        ks |= set(l.strip() for l in open(kf) if l.strip() and not l.startswith("#"))
+    return ks
+API_KEYS = _load_keys()
 try:
     _KRX = json.load(open(os.path.join(REPO, "data", "krx.json"), encoding="utf-8"))
 except FileNotFoundError:
@@ -75,6 +85,9 @@ class H(SimpleHTTPRequestHandler):
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(self.path).query).get("q", [""])[0]
             return self._json({"hits": lookup(q)})
+        if self.path == "/v1/models":
+            return self._json({"object": "list", "data": [
+                {"id": m, "object": "model", "owned_by": "comcom"} for m in API_MODELS]})
         if self.path == "/api/status":
             st = {}
             for k, u in BACKENDS.items():
@@ -86,7 +99,14 @@ class H(SimpleHTTPRequestHandler):
         if self.path == "/": self.path = "/index.html"
         return super().do_GET()
 
+    def _auth_ok(self):
+        h = self.headers.get("Authorization", "")
+        key = h[7:].strip() if h.startswith("Bearer ") else ""
+        return key in API_KEYS if API_KEYS else False
+
     def do_POST(self):
+        if self.path == "/v1/chat/completions":
+            return self._openai_chat()
         m = re.match(r"/api/chat/(before|after)$", self.path)
         if not m: return self._json({"error": "not found"}, 404)
         n = int(self.headers.get("Content-Length", 0)); body = json.loads(self.rfile.read(n) or b"{}")
@@ -106,6 +126,42 @@ class H(SimpleHTTPRequestHandler):
                 self.wfile.write(line); self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+    def _openai_chat(self):
+        if not self._auth_ok():
+            return self._json({"error": {"message": "invalid or missing API key. request one at kimminhyun@comcom.ai",
+                                          "type": "invalid_request_error", "code": "invalid_api_key"}}, 401)
+        n = int(self.headers.get("Content-Length", 0))
+        try:
+            body = json.loads(self.rfile.read(n) or b"{}")
+        except Exception:
+            return self._json({"error": {"message": "invalid JSON body", "type": "invalid_request_error"}}, 400)
+        side = API_MODELS.get(body.get("model", "finance-knowledge"))
+        if side is None:
+            return self._json({"error": {"message": f"unknown model. available: {list(API_MODELS)}",
+                                          "type": "invalid_request_error"}}, 404)
+        stream = bool(body.get("stream", False))
+        payload = {"model": MODEL, "messages": body.get("messages", []), "stream": stream,
+                   "temperature": body.get("temperature", 0.0), "max_tokens": body.get("max_tokens", 512),
+                   "chat_template_kwargs": {"enable_thinking": bool(body.get("enable_thinking", False))}}
+        req = urllib.request.Request(BACKENDS[side] + "/v1/chat/completions",
+                                     data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+        try:
+            up = urllib.request.urlopen(req, timeout=600)
+        except Exception as e:
+            return self._json({"error": {"message": f"upstream error: {e}", "type": "server_error"}}, 502)
+        if stream:
+            self.send_response(200); self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache"); self.end_headers()
+            try:
+                for line in up:
+                    self.wfile.write(line); self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+        else:
+            data = up.read()
+            self.send_response(200); self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
 
 
 if __name__ == "__main__":

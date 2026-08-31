@@ -26,3 +26,6 @@ engram/backups/*.npz
 share/**/*.npz
 share/patches/*.npz
 **/.ainize-runtime.lock/
+
+# API 키 (저장소 제외)
+web/api_keys.txt
