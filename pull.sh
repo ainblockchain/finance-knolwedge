@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# .env 자동 로드 (SUDO_PW 등)
+ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.env"
+[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
+[ -f "./.env" ] && set -a && . "./.env" && set +a
 SUDO_PW="${SUDO_PW:?export SUDO_PW before running}"
 IMG=vllm/vllm-openai:qwen38-flash-next
 for i in $(seq 1 40); do

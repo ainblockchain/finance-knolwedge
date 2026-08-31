@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# .env 자동 로드 (SUDO_PW 등)
+ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.env"
+[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
+[ -f "./.env" ] && set -a && . "./.env" && set +a
 # Qwen3.8-Flash-Next W4A16 on A100-SXM4-40GB
 # 이 호스트는 A100 8장 중 7장만 살아있다(PCI 0000:24:05.0 하드웨어 불량).
 # 아키텍처 제약: TP는 24(attn heads)/16(linear k heads)/48(linear v heads)를 모두

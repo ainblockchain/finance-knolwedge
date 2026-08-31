@@ -15,3 +15,6 @@ serve.sh.pre-lockdown
 __pycache__/
 *.pyc
 engram/backups/*.npz
+
+# 비밀 정보
+.env

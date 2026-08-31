@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# .env 자동 로드 (SUDO_PW 등)
+ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.env"
+[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
+[ -f "./.env" ] && set -a && . "./.env" && set +a
 # vLLM PLE 오프로드 멈춤 감시: 컨테이너 로그에 "No available shared memory broadcast block" 이
 # 연속 2회(약 2분) 나오면 5분 RPC 타임아웃을 기다리지 않고 바로 재기동한다.
 #   scripts/hang_watchdog.sh flashnext flashnext-after
