@@ -93,6 +93,53 @@ python scripts/validate_addressing.py                    # 주소 체계 재검�
 python scripts/patch.py status results/train-all/rows-pin.npz   # 최종 패치 상태 확인
 ```
 
+## 재현 가이드
+
+### 1. 먼저 이해할 것 (읽는 순서)
+1. [docs/06-how-51b-stores-knowledge.md](docs/06-how-51b-stores-knowledge.md) — 조건부 기억 테이블이 지식을 저장하는 원리. 이걸 모르면 "왜 행만 고치면 되는지"가 안 잡힌다.
+2. [docs/08-lookup-primitive.md](docs/08-lookup-primitive.md) — 해시 주소·게이트·conv의 실제 계산. 어떤 문구가 어떤 행을 지나는지 계산하는 근거.
+3. [docs/05-official-training.md](docs/05-official-training.md) — 공식 학습 설정(Adam, weight decay 0). 하이퍼파라미터의 이유.
+4. [results/14-full-corpus.md](results/14-full-corpus.md) — 전 종목 100%까지의 단계별 실측(1단계→3단계→핀포인트)과 함정.
+5. 배경 논문: DeepSeek Engram(arXiv 2601.07372), Qwen3.8-Flash-Next 기술 보고서.
+
+### 2. 환경 세팅
+- **GPU**: 학습에 A100 40GB급 3장(장당 약 24GB 사용). 서빙에 별도 4장(TP=4). 이 저장소 실측 환경 기준.
+- **서빙**: `ENGRAM_HOOK=1 ./serve.sh` — vLLM을 PLE 오프로드 + 패치 훅과 함께 기동한다. `.env`에 `SUDO_PW`를 채운다.
+- **학습 컨테이너**: `train/container.sh up` — transformers main + fla를 설치한 별도 컨테이너(GPU 4·5·6). 서빙 엔진은 역전파를 못 하므로 학습은 여기서 한다.
+- **체크포인트**: Qwen3.8-Flash-Next W4A16(약 168GB). `train/hf_model.py`가 int4 패킹 백본을 순전파 시에만 역양자화한다.
+
+### 3. 학습 재현 (종목코드 예시)
+```bash
+# 데이터
+python scripts/fetch_krx.py            # KRX 상장사 목록 → data/krx.json
+# 단일 사실부터 (30분, 원리 확인용)
+train/container.sh run python3 /work/train/train_fact.py --name 픽셀플러스 --code 087600
+# 전 종목 (1단계 12에포크 → 3단계 채팅형식 → 핀포인트)
+train/container.sh run python3 /work/train/train_all.py --micro 64 --epochs 12
+train/container.sh run python3 /work/train/train_all.py --init-patch results/train-all/rows-ep12.npz --chat --hard-repeat 4 --epochs 1 --tag p3ep
+train/container.sh run python3 /work/train/pinpoint.py --base results/train-all/rows-p3ep1.npz --targets "회사명:코드,..." --out results/train-all/rows-pin.npz
+# 독립 검증 (vLLM 자유 생성, 재기동 인지)
+python scripts/verify_all_rows.py results/train-all/rows-pin.npz --out results/verify-all.json
+```
+
+### 4. 새 도메인으로 확장하는 법
+핵심은 **"질의 → 정답" 쌍과 벤치마크만 바꾸면 파이프라인이 그대로 돈다**는 것이다.
+예를 들어 "DART 데이터 기준 삼성전자 CEO는 누구야?"를 통과시키려면:
+
+1. **데이터 수집**: DART 공시에서 (회사, CEO) 쌍을 크롤링한다. `scripts/fetch_krx.py`를 본떠 `fetch_dart.py`를 만든다.
+2. **표현 템플릿 작성**: `train/train_all.py`의 `TEMPLATES`/`CHAT_TEMPLATES`를 도메인에 맞게 교체한다.
+   예: `"{name}의 대표이사는 {ans}"`, `"{name} CEO는 {ans}"`, 채팅형 `"{name} 대표가 누구야?"`.
+   답이 사람 이름(가변 길이 토큰)이라 종목코드(고정 6자리)보다 답 토큰이 길다 — 손실은 답 구간에만 건다(코드에 이미 반영됨).
+3. **대조 문장 필수**: 같은 표현으로 다른 회사의 올바른 CEO를 함께 넣는다. 안 그러면 공유 행(`대표이사는 `)이 한 사람으로 붕괴한다.
+4. **벤치마크 정의**: 질의·정답 + 무관 텍스트 프로브(부수피해 한계)를 정한다. `scripts/verify_all_rows.py`의 정규식·프롬프트를 도메인에 맞게 바꾼다.
+5. **양방향이 필요하면**: "CEO 이름 → 회사"처럼 역방향도 원하면 `train/train_rev.py`의 `FWD`/`REV` 템플릿을 교체한다. 역방향은 정방향과 공유 행을 두고 경합하므로 오버샘플 균형을 조정해야 한다.
+
+### 5. 반드시 주의할 함정 (실측으로 겪은 것)
+- **표현 의존**: 학습한 표현에서만 통한다. 자연스러운 질문까지 통과시키려면 그 형식을 코퍼스에 넣어야 한다(채팅형식 13%→97% 사례 참조).
+- **평가 경로 차이**: HF teacher-forced 정확도와 vLLM 자유 생성 정확도가 경계 사례에서 다르다. **최종 판정은 반드시 서빙 엔진(vLLM) 자유 생성으로** 한다.
+- **재기동 환원**: vLLM PLE 오프로드가 지속 부하에서 멈추고 재기동되면 테이블이 원본으로 돌아간다. 검증·서빙에 `scripts/patch_watchdog.py`, `scripts/hang_watchdog.sh`를 함께 띄운다.
+- **답 직전 3토큰 공유**: 이름이 거의 같은 항목(예: 스팩)은 사전만으로 구분이 안 된다. 이름의 구분 토큰 위치 행이 백본을 통해 답을 운반하도록 학습돼야 하며, 잔여분은 핀포인트로 처리한다.
+
 ## 안전
 
 `engram.edit.write_rows`는 기본이 `dry_run=True`다. 실제 쓰기 전에 반드시
