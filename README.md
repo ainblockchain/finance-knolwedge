@@ -101,6 +101,6 @@ PLE 테이블은 기동 시 호스트 RAM으로 오프로드되므로, 디스크
 - 코드·문서·결과(md, json)·데이터(`data/krx.json`)를 포함한다.
 - 패치 바이너리(`results/train-all/*.npz`, 개당 약 300 MB, 총 4.8 GB), 모델 논문 PDF,
   로그, 백업본은 용량과 보안 때문에 제외한다. 패치는 aindrive로 공유한다:
-  **https://aindrive.ainetwork.ai/d/q09HFflTJjej** (받는 방법: [docs/09-패치-사용법.md](docs/09-패치-사용법.md)).
+  **https://aindrive.ainetwork.ai/d/VObK2uop7hs9** (받는 방법: [docs/09-패치-사용법.md](docs/09-패치-사용법.md)).
 - 실행 스크립트의 sudo 비밀번호는 `.env`(git 제외)로 분리한다. `.env.example`을
   복사하여 값을 채운다.
