@@ -54,7 +54,9 @@ Engram(PLE) 테이블은 입력 토큰 ID만으로 주소가 결정되는 조건
 
 ## 데모
 
-`web/`에 학습 전후 비교 데모가 있다.
+라이브 데모: **https://finance-demo.ainetwork.ai/index.html**
+
+로컬 실행:
 
 ```bash
 python3 web/server.py --port 8080
