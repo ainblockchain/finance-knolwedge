@@ -125,6 +125,8 @@ python scripts/validate_addressing.py                    # 주소 체계 재검�
 python scripts/patch.py status results/train-all/rows-pin.npz   # 최종 패치 상태 확인
 ```
 
+학생용 전체 절차(재현→자기 모델 학습→aindrive 공유)는 [docs/10-재현부터-공유까지.md](docs/10-재현부터-공유까지.md)를 참고한다.
+
 ## 재현 가이드
 
 ### 1. 먼저 이해할 것 (읽는 순서)
