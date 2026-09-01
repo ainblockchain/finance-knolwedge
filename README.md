@@ -72,34 +72,71 @@ python3 web/server.py --port 8080
 
 ## OpenAI 호환 API
 
-데모 서버는 OpenAI Chat Completions 형식의 엔드포인트를 제공한다. 기존 OpenAI SDK의
+데모 서버는 OpenAI Chat Completions 형식의 엔드포인트를 제공한다. 기존 OpenAI SDK에서
 `base_url`만 바꾸면 그대로 쓸 수 있다.
 
-- 엔드포인트: `https://finance-demo.ainetwork.ai/v1/chat/completions`, `/v1/models`
-- 모델: `finance-knowledge`(학습 후, 종목코드 지식 주입) / `finance-knowledge-base`(원본)
-- 인증: `Authorization: Bearer <API_KEY>`
+- 기준 URL: `https://finance-demo.ainetwork.ai/v1`
+- 엔드포인트: `POST /v1/chat/completions`, `GET /v1/models`
+- 인증: 채팅 요청에는 `Authorization: Bearer <API_KEY>` 헤더가 필요하며, 누락되거나
+  일치하지 않으면 401을 반환한다. 모델 목록 조회(`/v1/models`)는 인증이 필요 없다.
+- 모델: `finance-knowledge`(종목코드 지식을 주입한 학습 후 모델) / `Qwen3.8-Flash-Next`(튜닝하지 않은 원본 모델)
+
+### 지원 파라미터
+
+| 파라미터 | 기본값 | 설명 |
+|---|---|---|
+| `model` | `finance-knowledge` | 위 두 모델 중 하나 |
+| `messages` | (필수) | OpenAI 형식의 대화 메시지 배열 |
+| `stream` | `false` | `true`이면 SSE(`text/event-stream`)로 토큰을 흘려보낸다 |
+| `temperature` | `0` | `0`이면 그리디 디코딩 |
+| `max_tokens` | `512` | 생성할 최대 토큰 수 |
+| `enable_thinking` | `false` | `true`이면 사고(thinking) 과정을 함께 생성한다 |
+
+### 모델 목록 조회
+
+```bash
+curl https://finance-demo.ainetwork.ai/v1/models
+```
+
+### 채팅 완성 (curl)
 
 ```bash
 curl https://finance-demo.ainetwork.ai/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
-  -d '{"model":"finance-knowledge","messages":[{"role":"user","content":"픽셀플러스 종목코드 알려줘"}]}'
+  -d '{"model":"finance-knowledge","messages":[{"role":"user","content":"삼성전자 종목코드 알려줘"}]}'
 ```
+
+응답은 표준 OpenAI 형식이다.
+
+```json
+{"choices": [{"message": {"role": "assistant", "content": "005930"}, "finish_reason": "stop"}]}
+```
+
+### 채팅 완성 (Python SDK)
 
 ```python
 from openai import OpenAI
 client = OpenAI(base_url="https://finance-demo.ainetwork.ai/v1", api_key="<API_KEY>")
 r = client.chat.completions.create(
     model="finance-knowledge",
-    messages=[{"role": "user", "content": "픽셀플러스 종목코드 알려줘"}])
+    messages=[{"role": "user", "content": "삼성전자 종목코드 알려줘"}])
 print(r.choices[0].message.content)
 ```
 
-`stream: true`, `temperature`, `max_tokens` 를 지원한다.
+스트리밍은 `stream=True`로 켠다.
+
+```python
+for chunk in client.chat.completions.create(
+        model="finance-knowledge",
+        messages=[{"role": "user", "content": "삼성전자 종목코드 알려줘"}],
+        stream=True):
+    print(chunk.choices[0].delta.content or "", end="", flush=True)
+```
 
 ### API 키 발급
-API 키는 보안상 저장소에 포함하지 않으며 개별 발급한다. **kimminhyun@comcom.ai** 로
-문의한다. (서버 운영자는 `web/api_keys.txt`(줄단위) 또는 환경변수 `API_KEYS`(쉼표구분)로
-키를 등록한다. 이 파일은 git 에서 제외된다.)
+API 키는 보안상 저장소에 포함하지 않으며 개별 발급한다. **kimminhyun@comcom.ai**로
+문의한다. (서버 운영자는 `web/api_keys.txt`(줄 단위) 또는 환경변수 `API_KEYS`(쉼표 구분)로
+키를 등록하며, 이 파일은 git에서 제외된다.)
 
 ## 구조
 

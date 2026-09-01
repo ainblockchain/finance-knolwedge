@@ -28,6 +28,6 @@ async function ask(side,q){hist[side].push({role:'user',content:q});add(side,'us
   }catch(e){el.textContent='⚠ '+e;}}
 async function showAnswer(q){try{const {hits}=await (await fetch('/api/lookup?q='+encodeURIComponent(q))).json();const box=document.getElementById('answer');if(!hits.length){box.style.display='none';return;}document.getElementById('answer-body').innerHTML=hits.map(h=>`<b>${h.name}</b> → <code>${h.code}</code> <span class="note">${h.market}</span>`).join(' &nbsp;·&nbsp; ');box.style.display='';}catch(e){}}
 async function send(){const q=document.getElementById('q').value.trim();if(!q)return;showAnswer(q);document.getElementById('q').value='';document.getElementById('send').disabled=true;await Promise.all([ask('before',q),ask('after',q)]);document.getElementById('send').disabled=false;}
-document.getElementById('send').onclick=send;document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+document.getElementById('send').onclick=send;document.getElementById('q').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;/* 한글 IME 조합 중 Enter 는 무시: 조합 중 전송하면 마지막 글자가 커밋되며 중복 입력된다 */if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
 document.getElementById('clear').onclick=()=>{hist.before=[];hist.after=[];document.getElementById('log-before').innerHTML='';document.getElementById('log-after').innerHTML='';};
 </script></body></html>

@@ -112,3 +112,55 @@ MTP 를 끈 것은 무해하지만 근거가 없었다.  `serve.sh` 의 `MTP` �
 
 근본 원인은 vLLM 의 PLE CPU 오프로드 경로에 있으며 이 프로젝트 범위 밖이다.
 GPU 상주 PLE(`VLLM_PLE_CPU_OFFLOAD=0`) 는 80GB 급 GPU 가 필요하다.
+
+## 해결 (09-01) — 근본 원인: 단일 재사용 CUDA 이벤트의 교차-스텝 aliasing
+
+py-spy 로 멈춘 GPU 워커(TP0)의 스택을 뜨니 데드락 지점이 드러났다.
+
+- 노티파이어 스레드(`ple-offload-dp0`) 는 `connector.py` `_copy_cuda_inputs` 의
+  `d2h_done_event.synchronize()` 에서 영원히 대기.
+- 모델 메인 스레드는 `dequeue` 에서 유휴, 오프로드 프로세스는 ZMQ poll 에서 유휴.
+  즉 노티파이어만 막혀 있고 나머지는 그것을 기다린다.
+
+원인은 D2H 입력 스테이징이 **인스턴스 전역의 단일** `_input_ready_event` 를
+재사용한 데 있다. CUDA 그래프 하에서 스텝 A 를 큐한 뒤 스텝 B 의 `_launch` 가
+같은 이벤트 객체를 다시 record 하면, 노티파이어가 A 를 처리하며 기다리는 스트림
+위치가 A 뒤에 큐된 B 그래프 안으로 밀린다. 그런데 A 의 그래프는 PLE 레이어에서
+오프로드 결과(=노티파이어)를 기다리며 GPU 스트림이 멈춰 있어, GPU 가 B 위치에
+도달하려면 먼저 A 가 끝나야 한다 → 순환 대기(A 는 노티파이어를, 노티파이어는 B
+위치를, B 위치는 A 완료를 기다림). 부하가 높아 여러 스텝이 연속 큐될수록 발생 확률↑.
+
+### 수정 (`vllm_patch/connector.py`)
+
+요청마다 **고유한** input_ready / d2h_done 이벤트를 쓰도록 링 풀을 도입했다.
+
+- `_input_ready_events`, `_d2h_done_events` 를 `max in-flight`(큐 maxsize + 여유)
+  크기의 링으로 할당.
+- `_launch` 가 요청마다 슬롯을 잡아 그 슬롯 이벤트에만 record 하고, in-process
+  큐에 `(request, slot)` 튜플로 전달(직렬화되는 ZMQ 메시지는 그대로).
+- `_copy_cuda_inputs(request, slot)` 은 자기 슬롯 이벤트만 wait/record/synchronize.
+
+노티파이어는 항상 자기 요청의 **초기** 스트림 위치만 기다리므로 순환이 깨진다.
+
+### 검증
+
+같은 컨테이너·설정에서 이전에 80건 이후 멈춰 155/200 오류가 나던 부하가:
+
+| 조건 | 결과 |
+|---|---|
+| 동시성 8 · 200요청 (학습 전 8000) | 오류 0, 165s |
+| 동시성 16 · 400요청 (8000) | 오류 0, 314s |
+| 동시성 16 · 400요청 (편집된 8001) | 오류 0, 319s |
+| 부하 300요청 + 동시 편집 3회 (8001) | 오류 0, 249s |
+
+`hang_watchdog.sh` / `patch_watchdog.py` 는 안전망으로 남겨두지만, 정상 부하에서는
+더 이상 발동하지 않는다.
+
+### 운영 주의: bind-mount inode 함정
+
+`vllm_patch/*.py` 는 컨테이너에 **읽기 전용 파일 bind-mount** 다. 편집기가
+atomic-rename(임시파일→rename)으로 저장하면 host 경로가 새 inode 를 가리켜
+컨테이너가 보는 옛 inode 는 갱신되지 않는다(read-only 라 in-place 덮어쓰기도 불가).
+반드시 `docker restart <컨테이너>` 로 현재 host inode 를 다시 바인딩해야 새 코드가
+로드된다. (restart 직후 잠깐은 전이 중이라 옛 md5 가 보일 수 있으니 준비 완료 후
+`docker exec <c> md5sum <파일>` 로 확인할 것.)

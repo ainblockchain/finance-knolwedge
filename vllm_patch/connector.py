@@ -100,16 +100,27 @@ class PleOffloadConnector:
         self._pinned_input_buffers: list[torch.Tensor] = []
         # PLE rejects DBO, and each forward consumes its output before the
         # next launch, so one pending request is sufficient.
-        self._request_queue: queue.Queue[PleOffloadRequest | None] = queue.Queue(
-            maxsize=1
+        self._request_queue: queue.Queue[
+            tuple[PleOffloadRequest, int] | None
+        ] = queue.Queue(
+            maxsize=64
         )
         self._request_thread: threading.Thread | None = None
         self._request_thread_ready = threading.Event()
         self._zmq_ctx: zmq.Context | None = None
         self._registration_socket: zmq.Socket | None = None
         self._d2h_stream: torch.cuda.Stream | None = None
-        self._input_ready_event: torch.cuda.Event | None = None
-        self._d2h_done_event: torch.cuda.Event | None = None
+        # 요청마다 고유 이벤트를 쓰는 링 풀.  단일 이벤트를 재사용하면
+        # CUDA 그래프 하에서 스텝 B 의 _launch 가 스텝 A 가 아직 소비하지
+        # 못한 input_ready 이벤트를 덮어써, 노티파이어가 A 처리 중 기다리는
+        # 스트림 위치가 A 뒤에 큐된 B 그래프 안으로 밀린다.  A 는 오프로드
+        # 결과를(따라서 노티파이어를) 기다리고 GPU 는 A 를 끝내야 B 위치에
+        # 도달하므로 순환 데드락이 된다.  풀 크기는 최대 in-flight(큐
+        # maxsize + 스테이징 여유)보다 충분히 커야 슬롯이 재기록되지 않는다.
+        self._event_ring_size = self._request_queue.maxsize + 8
+        self._input_ready_events: list[torch.cuda.Event] = []
+        self._d2h_done_events: list[torch.cuda.Event] = []
+        self._launch_counter = 0
 
         try:
             self._zmq_ctx = zmq.Context()
@@ -124,8 +135,14 @@ class PleOffloadConnector:
                     self._pin_input_buffers()
                     if self._uses_cuda_inputs:
                         self._d2h_stream = torch.cuda.Stream(device=self.device)
-                        self._input_ready_event = torch.cuda.Event()
-                        self._d2h_done_event = torch.cuda.Event()
+                        self._input_ready_events = [
+                            torch.cuda.Event()
+                            for _ in range(self._event_ring_size)
+                        ]
+                        self._d2h_done_events = [
+                            torch.cuda.Event()
+                            for _ in range(self._event_ring_size)
+                        ]
                 self._start_request_thread(ipc_addr)
         except Exception:
             self.close()
@@ -266,10 +283,11 @@ class PleOffloadConnector:
             socket.connect(ipc_addr)
             self._request_thread_ready.set()
             while True:
-                request = self._request_queue.get()
-                if request is None:
+                item = self._request_queue.get()
+                if item is None:
                     return
-                self._process_request(request, socket)
+                request, slot = item
+                self._process_request(request, slot, socket)
         except Exception:
             logger.exception("PLE request thread failed")
             os._exit(1)
@@ -278,10 +296,12 @@ class PleOffloadConnector:
             if socket is not None:
                 socket.close(linger=0)
 
-    def _process_request(self, request: PleOffloadRequest, socket: zmq.Socket) -> None:
+    def _process_request(
+        self, request: PleOffloadRequest, slot: int, socket: zmq.Socket
+    ) -> None:
         """Stage one batch from fixed sources and publish its request."""
         if self._uses_cuda_inputs:
-            self._copy_cuda_inputs(request)
+            self._copy_cuda_inputs(request, slot)
         else:
             self._copy_cpu_inputs(request)
 
@@ -338,18 +358,20 @@ class PleOffloadConnector:
             ):
                 raise ValueError(f"PLE {name} source is incompatible")
 
-    def _copy_cuda_inputs(self, request: PleOffloadRequest) -> None:
+    def _copy_cuda_inputs(self, request: PleOffloadRequest, slot: int) -> None:
         """Stage MRV2 inputs on the background D2H stream."""
         if (
             self._d2h_stream is None
-            or self._input_ready_event is None
-            or self._d2h_done_event is None
+            or not self._input_ready_events
+            or not self._d2h_done_events
         ):
             raise RuntimeError("PLE D2H resources are not initialized")
+        input_ready_event = self._input_ready_events[slot]
+        d2h_done_event = self._d2h_done_events[slot]
 
         with torch.accelerator.device_index(self.device.index):
             with torch.cuda.stream(self._d2h_stream):
-                self._d2h_stream.wait_event(self._input_ready_event)
+                self._d2h_stream.wait_event(input_ready_event)
                 with torch.cuda.nvtx.range("ple_offload.copy_input_ids"):
                     self._input_ids_buf[: request.num_tokens].copy_(
                         self._input_ids_source[: request.num_tokens],
@@ -367,9 +389,9 @@ class PleOffloadConnector:
                             self._ngram_context_source[: request.num_reqs],
                             non_blocking=True,
                         )
-                self._d2h_done_event.record(self._d2h_stream)
+                d2h_done_event.record(self._d2h_stream)
             with torch.cuda.nvtx.range("ple_offload.wait_d2h"):
-                self._d2h_done_event.synchronize()
+                d2h_done_event.synchronize()
 
     def _launch(
         self,
@@ -382,11 +404,19 @@ class PleOffloadConnector:
         if self.tp_rank != 0:
             return
 
+        slot = -1
         if self._uses_cuda_inputs:
-            assert self._input_ready_event is not None
+            assert self._input_ready_events
+            # 이 요청 전용 슬롯을 잡고 그 슬롯의 input_ready 이벤트에만 기록한다.
+            # 링 크기가 최대 in-flight 보다 커서 아직 처리 중인 슬롯을 덮어쓰지
+            # 않으므로, 노티파이어는 항상 자기 요청의 스트림 위치만 기다린다.
+            slot = self._launch_counter % self._event_ring_size
+            self._launch_counter += 1
             # The background copy stream waits for runner input production
             # without making the model stream wait for D2H completion.
-            self._input_ready_event.record(torch.cuda.current_stream(self.device))
+            self._input_ready_events[slot].record(
+                torch.cuda.current_stream(self.device)
+            )
         request = PleOffloadRequest(
             dp_rank=self.dp_rank,
             num_tokens=num_tokens,
@@ -394,9 +424,9 @@ class PleOffloadConnector:
         )
         # 원본은 put_nowait 이라 큐가 차 있으면 즉시 queue.Full 을 던지고
         # GPU 워커가 죽는다.  소비자(오프로드 프로세스)가 편집 훅의 행 쓰기로
-        # 잠깐 멈추기만 해도 엔진 전체가 내려간다.  죽이는 대신 기다린다 —
-        # maxsize=1 불변식(한 번에 하나만 in-flight)은 그대로 유지된다.
-        self._request_queue.put(request, timeout=120)
+        # 잠깐 멈추기만 해도 엔진 전체가 내려간다.  죽이는 대신 기다린다.
+        # 큐에는 (요청, 슬롯) 튜플을 넣어 노티파이어가 올바른 이벤트를 고른다.
+        self._request_queue.put((request, slot), timeout=120)
 
     def prepare_forward(
         self,
@@ -445,8 +475,8 @@ class PleOffloadConnector:
         if self._pinned_input_buffers:
             with torch.accelerator.device_index(self.device.index):
                 self._unpin_input_buffers()
-        self._d2h_done_event = None
-        self._input_ready_event = None
+        self._d2h_done_events = []
+        self._input_ready_events = []
         self._d2h_stream = None
         if self._registration_socket is not None:
             self._registration_socket.close(linger=0)

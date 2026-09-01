@@ -13,7 +13,7 @@ BACKENDS = {"before": os.environ.get("BEFORE_API", "http://localhost:8000"),
             "after":  os.environ.get("AFTER_API",  "http://localhost:8001")}
 MODEL = "Qwen3.8-Flash-Next"
 # OpenAI 호환 API: 모델명 → 백엔드. 학습 후(패치 적용)가 기본.
-API_MODELS = {"finance-knowledge": "after", "finance-knowledge-base": "before"}
+API_MODELS = {"finance-knowledge": "after", "Qwen3.8-Flash-Next": "before"}
 # API 키는 저장소에 두지 않는다. 환경변수 API_KEYS(쉼표구분) 또는 web/api_keys.txt(줄단위, gitignore).
 def _load_keys():
     ks = set(k.strip() for k in os.environ.get("API_KEYS", "").split(",") if k.strip())
