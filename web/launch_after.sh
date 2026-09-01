@@ -4,7 +4,7 @@
 #   web/launch_after.sh results/train-all/rows-epN.npz
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd); NPZ=${1:?npz 경로}
-S() { sudo "$@"; }
+S() { "$@"; }
 if S docker ps --format '{{.Names}}' | grep -q '^flashtrain$'; then
   if S docker exec flashtrain pgrep -f train_all.py >/dev/null 2>&1; then echo "학습이 아직 실행 중"; exit 1; fi
   S docker rm -f flashtrain >/dev/null; echo "학습 컨테이너 내림"

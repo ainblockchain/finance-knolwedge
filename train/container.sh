@@ -5,7 +5,7 @@
 #   train/container.sh run <cmd...>   컨테이너 안에서 실행
 #   train/container.sh down
 set -euo pipefail
-S() { sudo "$@"; }
+S() { "$@"; }
 NAME=flashtrain
 IMG=vllm/vllm-openai:qwen38-flash-next
 MODEL=/mnt/newdata/models/Qwen3.8-Flash-Next-W4A16
@@ -19,7 +19,7 @@ case "${1:-}" in
       --entrypoint bash $IMG -c "sleep infinity"
     S docker exec $NAME bash -c "pip install -q https://github.com/huggingface/transformers/archive/refs/heads/main.zip flash-linear-attention==0.5.2 2>&1 | tail -3 && python3 -c \"import transformers;print('transformers',transformers.__version__); import fla; print('fla', fla.__version__)\""
     ;;
-  run) shift; S true; sudo docker exec -i -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $NAME "$@" ;;   # sudo 인증 먼저 — stdin 을 스크립트에 넘기기 위해
+  run) shift; docker exec -i -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True $NAME "$@" ;;   # sudo 인증 먼저 — stdin 을 스크립트에 넘기기 위해
   down) S docker rm -f $NAME ;;
   *) echo "usage: $0 up|run|down"; exit 1 ;;
 esac

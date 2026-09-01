@@ -3,7 +3,7 @@
 # vLLM PLE 오프로드 멈춤 감시: 컨테이너 로그에 "No available shared memory broadcast block" 이
 # 연속 2회(약 2분) 나오면 5분 RPC 타임아웃을 기다리지 않고 바로 재기동한다.
 #   scripts/hang_watchdog.sh flashnext flashnext-after
-S() { sudo "$@"; }
+S() { "$@"; }
 declare -A last
 while true; do
   for c in "$@"; do

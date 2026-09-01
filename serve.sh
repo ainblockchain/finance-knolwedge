@@ -35,7 +35,7 @@ read -r -a EXTRA <<< "${EXTRA_ARGS:-}"
 COMPILE_CFG=${COMPILE_CFG:-'{"mode": 0, "cudagraph_mode": "FULL_DECODE_ONLY"}'}
 ENGRAM_HOOK=${ENGRAM_HOOK:-0}
 
-S() { sudo "$@"; }
+S() { "$@"; }
 
 HOOK_ARGS=()
 if [ "$ENGRAM_HOOK" = "1" ]; then
@@ -82,4 +82,4 @@ S docker run -d --name "$NAME" \
   --trust-remote-code
 
 echo "started: $NAME (TP=$TP, port=$PORT)"
-echo "logs: sudo docker logs -f $NAME"
+echo "logs: docker logs -f $NAME"
