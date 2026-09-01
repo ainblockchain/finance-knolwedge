@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 
-# .env 자동 로드 (SUDO_PW 등)
-ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.env"
-[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
-[ -f "./.env" ] && set -a && . "./.env" && set +a
 # 학습 완료 후: 학습 컨테이너 내리고 → GPU 4,5 에 "학습 후" vLLM(port 8001, TP=2) 띄우고 → 패치 끼우기.
 #   web/launch_after.sh results/train-all/rows-epN.npz
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd); NPZ=${1:?npz 경로}
-S() { echo "${SUDO_PW:?export SUDO_PW before running}" | sudo -S -p '' "$@"; }
+S() { sudo "$@"; }
 if S docker ps --format '{{.Names}}' | grep -q '^flashtrain$'; then
   if S docker exec flashtrain pgrep -f train_all.py >/dev/null 2>&1; then echo "학습이 아직 실행 중"; exit 1; fi
   S docker rm -f flashtrain >/dev/null; echo "학습 컨테이너 내림"

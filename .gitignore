@@ -16,8 +16,6 @@ __pycache__/
 *.pyc
 engram/backups/*.npz
 
-# 비밀 정보
-.env
 
 # teach-mode job dirs written by the Ainize node (train/teach.py)
 .teach/

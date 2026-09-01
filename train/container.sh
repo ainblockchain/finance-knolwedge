@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 
-# .env 자동 로드 (SUDO_PW 등)
-ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.env"
-[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
-[ -f "./.env" ] && set -a && . "./.env" && set +a
 # 학습 컨테이너 (서빙 컨테이너 flashnext 와 별개).  GPU 4,5,6 사용.
 #   train/container.sh up      컨테이너 생성 + 패키지 설치
 #   train/container.sh run <cmd...>   컨테이너 안에서 실행
 #   train/container.sh down
 set -euo pipefail
-S() { echo "${SUDO_PW:?export SUDO_PW before running}" | sudo -S -p '' "$@"; }
+S() { sudo "$@"; }
 NAME=flashtrain
 IMG=vllm/vllm-openai:qwen38-flash-next
 MODEL=/mnt/newdata/models/Qwen3.8-Flash-Next-W4A16

@@ -118,14 +118,13 @@ serve.sh         vLLM 기동 (ENGRAM_HOOK=1 이면 패치 훅 포함)
 ## 빠른 시작
 
 ```bash
-cp .env.example .env      # SUDO_PW 값을 채운다
 pip install numpy safetensors tokenizers
 
 python scripts/validate_addressing.py                    # 주소 체계 재검증
 python scripts/patch.py status results/train-all/rows-pin.npz   # 최종 패치 상태 확인
 ```
 
-학생용 전체 절차(재현→자기 모델 학습→aindrive 공유)는 [docs/10-재현부터-공유까지.md](docs/10-재현부터-공유까지.md)를 참고한다.
+전체 절차(재현 → 자기 모델 학습 → aindrive 공유)는 [docs/10-재현부터-공유까지.md](docs/10-재현부터-공유까지.md)를 참고한다.
 
 ## 재현 가이드
 
@@ -138,7 +137,7 @@ python scripts/patch.py status results/train-all/rows-pin.npz   # 최종 패치 
 
 ### 2. 환경 세팅
 - **GPU**: 학습에 A100 40GB급 3장(장당 약 24GB 사용). 서빙에 별도 4장(TP=4). 이 저장소 실측 환경 기준.
-- **서빙**: `ENGRAM_HOOK=1 ./serve.sh` — vLLM을 PLE 오프로드 + 패치 훅과 함께 기동한다. `.env`에 `SUDO_PW`를 채운다.
+- **서빙**: `ENGRAM_HOOK=1 ./serve.sh` — vLLM을 PLE 오프로드 + 패치 훅과 함께 기동한다.
 - **학습 컨테이너**: `train/container.sh up` — transformers main + fla를 설치한 별도 컨테이너(GPU 4·5·6). 서빙 엔진은 역전파를 못 하므로 학습은 여기서 한다.
 - **체크포인트**: Qwen3.8-Flash-Next W4A16(약 168GB). `train/hf_model.py`가 int4 패킹 백본을 순전파 시에만 역양자화한다.
 
@@ -186,5 +185,4 @@ PLE 테이블은 기동 시 호스트 RAM으로 오프로드되므로, 디스크
 - 패치 바이너리(`results/train-all/*.npz`, 개당 약 300 MB, 총 4.8 GB), 모델 논문 PDF,
   로그, 백업본은 용량과 보안 때문에 제외한다. 패치는 aindrive로 공유한다:
   **https://aindrive.ainetwork.ai/d/VObK2uop7hs9** (받는 방법: [docs/09-패치-사용법.md](docs/09-패치-사용법.md)).
-- 실행 스크립트의 sudo 비밀번호는 `.env`(git 제외)로 분리한다. `.env.example`을
-  복사하여 값을 채운다.
+- 실행 스크립트는 `sudo docker`를 직접 호출한다. 무암호 sudo 또는 docker 그룹 권한이 필요하다.
