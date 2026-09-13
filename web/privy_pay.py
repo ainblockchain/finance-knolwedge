@@ -157,7 +157,9 @@ def issue_nonce(q):
 def privy(method, path, body=None):
     """(http status, json). Basic 인증은 app_id:app_secret 이고 privy-app-id 헤더도 함께 보낸다."""
     hdr = {"Authorization": "Basic " + base64.b64encode(f"{CFG['app_id']}:{CFG['app_secret']}".encode()).decode(),
-           "privy-app-id": CFG["app_id"], "Content-Type": "application/json"}
+           "privy-app-id": CFG["app_id"], "Content-Type": "application/json",
+           # Cloudflare 가 urllib 기본 UA 를 막는다 (403, error code 1010). 우리가 누구인지 밝힌다.
+           "User-Agent": "finance-demo-agent/1.0 (+https://finance-demo.ainetwork.ai)"}
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(PRIVY_API + path, data=data, headers=hdr, method=method)
     try:
