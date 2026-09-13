@@ -4,15 +4,22 @@
 정적 파일(web/) 을 서빙하고, /api/chat/<before|after> 를 각 vLLM 인스턴스의
 /v1/chat/completions 로 스트리밍 프록시한다.  /api/bench, /api/train 은 결과 JSON.
 """
-import argparse, json, os, re, sys, urllib.request
+import argparse, json, os, re, sys, threading, time, urllib.request
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import privy_pay  # /api/fact (402 결제 요구) · /api/privy/* — Privy 서버 지갑으로 사실을 사는 에이전트
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(ROOT)
+sys.path.insert(0, os.path.join(REPO, "scripts"))
 BACKENDS = {"before": os.environ.get("BEFORE_API", "http://localhost:8000"),
             "after":  os.environ.get("AFTER_API",  "http://localhost:8001")}
 MODEL = "Qwen3.8-Flash-Next"
+# "학습 후" 서버가 실제로 무엇을 서빙하고 있는지. 서버가 떠 있다는 것과 패치가 테이블에
+# 올라가 있다는 것은 서로 다른 사실인데, 이 둘을 뭉뚱그린 탓에 2026-09-12 에는 원본 모델이
+# 22시간 동안 "학습 후" 로 표시됐다. 이제 /api/status 가 둘을 따로 답한다.
+AFTER_NPZ = os.environ.get("AFTER_NPZ", os.path.join(REPO, "results", "train-all", "rows-bidir-final.npz"))
+AFTER_PATCH_DIR = os.environ.get("AFTER_PATCH_DIR", os.path.join(REPO, "ple_patch_after"))
+PATCH_CHECK_TTL = float(os.environ.get("PATCH_CHECK_TTL", "20"))
 # OpenAI 호환 API: 모델명 → 백엔드. 학습 후(패치 적용)가 기본.
 API_MODELS = {"finance-knowledge": "after", "Qwen3.8-Flash-Next": "before"}
 # API 키는 저장소에 두지 않는다. 환경변수 API_KEYS(쉼표구분) 또는 web/api_keys.txt(줄단위, gitignore).
@@ -44,8 +51,39 @@ def lookup(text):
     return hits
 
 
-privy_pay.LOOKUP = lookup  # 결제 후 답의 정답 판정에 같은 사전을 쓴다
+_patch_cache = {"at": 0.0, "val": None}
+_patch_lock = threading.Lock()
 
+
+def patch_state():
+    """학습 후 서버의 PLE 테이블에 패치가 실제로 올라가 있는가.
+
+    {"applied": True|False|None, "npz": ..., "rows": ..., "detail": ...}
+    `applied: None` 은 "확인하지 못했다" 이지 "적용됐다" 가 아니다 — 화면도 그렇게 구분해서
+    보여줘야 한다. 훅 왕복이 있으므로 PATCH_CHECK_TTL 초 동안 캐시한다.
+    """
+    with _patch_lock:
+        if _patch_cache["val"] is not None and time.time() - _patch_cache["at"] < PATCH_CHECK_TTL:
+            return _patch_cache["val"]
+    if not os.path.exists(AFTER_NPZ):
+        val = {"applied": None, "npz": os.path.basename(AFTER_NPZ), "rows": None,
+               "detail": f"npz 를 찾을 수 없다: {AFTER_NPZ} (AFTER_NPZ 로 지정)"}
+    else:
+        try:
+            from patch_fingerprint import check, load
+            fp = load(AFTER_NPZ)
+            state, detail = check(fp, AFTER_PATCH_DIR)
+            val = {"applied": {"applied": True, "stale": False}.get(state),
+                   "npz": fp["npz"], "rows": fp["rows"], "detail": detail}
+        except Exception as e:
+            val = {"applied": None, "npz": os.path.basename(AFTER_NPZ), "rows": None,
+                   "detail": f"{type(e).__name__}: {e}"}
+    with _patch_lock:
+        _patch_cache.update(at=time.time(), val=val)
+    return val
+
+
+privy_pay.LOOKUP = lookup  # 결제 후 답의 정답 판정에 같은 사전을 쓴다
 
 def train_table():
     rows = []
@@ -100,6 +138,10 @@ class H(SimpleHTTPRequestHandler):
                     urllib.request.urlopen(u + "/v1/models", timeout=3); st[k] = True
                 except Exception:
                     st[k] = False
+            # 서버가 떠 있는 것과 학습 내용이 들어 있는 것은 다른 사실이다. 후자를 따로 답한다.
+            st["patch"] = patch_state() if st.get("after") else {
+                "applied": None, "npz": os.path.basename(AFTER_NPZ), "rows": None,
+                "detail": "학습 후 서버가 응답하지 않는다"}
             return self._json(st)
         if self.path == "/": self.path = "/index.html"
         return super().do_GET()
