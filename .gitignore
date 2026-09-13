@@ -27,3 +27,6 @@ share/patches/*.npz
 
 # API 키 (저장소 제외)
 web/api_keys.txt
+
+# 패치 적용 여부 확인용 표본 지문 (npz 에서 생성되는 캐시)
+results/**/*.fp.json

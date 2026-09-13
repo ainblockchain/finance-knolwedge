@@ -3,6 +3,7 @@
 nav{display:flex;gap:4px;align-items:center;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
 nav .brand{font-weight:700;margin-right:18px;color:var(--acc)}nav a{color:var(--mute);text-decoration:none;padding:6px 12px;border-radius:8px}nav a.on,nav a:hover{color:var(--fg);background:#22273200;background:#232836}
 nav .st{margin-left:auto;font-size:13px;color:var(--mute)}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);margin:0 4px 0 12px;vertical-align:middle}.dot.on{background:var(--ok)}
+.banner{background:#2a2113;border-bottom:1px solid var(--warn);color:var(--warn);padding:10px 18px;font-size:14px}.banner .note{color:var(--mute)}.banner[hidden]{display:none}
 main{max-width:1280px;margin:0 auto;padding:20px 18px}h1{font-size:22px;margin:6px 0 14px}h2{font-size:17px;margin:26px 0 10px;color:var(--acc)}h3{font-size:15px;margin:16px 0 6px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.card h2{margin-top:0}
