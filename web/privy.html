@@ -119,18 +119,28 @@ function noteFor(r){
   return (r.privy_raw&&r.privy_raw.error)||'오류';
 }
 function rowFor(r){return {time:new Date((r.t||Date.now()/1000)*1000).toLocaleTimeString('ko-KR',{hour12:false}),name:r.company,model:r.model,code:r.code,amount:r.amount_wei,state:r.verdict,reason:r.privy_raw?(r.privy_raw.code||r.privy_raw.error||''):'',hash:r.tx_hash,explorer:r.explorer};}
-async function settle(model,instruction){const res=await fetch('/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,model})});const r=await res.json();if(!res.ok)throw new Error(r.error||res.status);return r;}
+let REG=[];
+async function settle(model,instruction,batch){const res=await fetch(batch?'/settle/batch':'/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,model})});const r=await res.json();if(!res.ok)throw new Error(r.error||res.status);return r;}
+/* 한 지시에 회사가 여럿이면 일괄 지급(/settle/batch): 한 건이 환각이면 그 건만 거부되고 나머지는 정산된다 — 부분 실패 격리 */
+function renderBatch(model,b){const legs=b.legs||[];const sm=b.summary||{};const st=sm.deny>0?'deny':(sm.exec>0?'exec':'error');
+  render({side:model,code:`${sm.exec||0}/${legs.length}`,state:st,expected:legs.map(l=>l.expected_code).join(' '),answer:legs.map(l=>l.model_answer).join(' / '),
+    note:`${legs.length}건 일괄: 체결 ${sm.exec||0} · 거부 ${sm.deny||0} · 오류 ${sm.error||0}. `+legs.map(l=>`${l.company} ${l.code||'—'} → ${l.verdict.toUpperCase()}`).join(' · ')+(sm.deny>0?' — 환각한 건만 서명이 거부되고 나머지는 정산됐습니다.':''),
+    raw:legs.map(l=>({company:l.company,code:l.code,verdict:l.verdict,request:l.privy_request||null,response:l.privy_raw,tx_hash:l.tx_hash})),
+    to:legs.map(l=>short(l.to)).join(' · '),verified:legs.every(l=>l.verified_recipient)});
+  const el=$('#lane-'+model+' .code');el.style.fontSize='40px';el.title='체결 / 전체';for(const l of legs)if(l.company)appendRow(rowFor(l));}
 async function run(){const instruction=$('#instr').value.trim();if(!instruction)return;$('#run').disabled=true;
-  for(const s of['before','after'])render({side:s,code:null,state:'idle',note:'실행 중… 모델 질의 → Privy 서명 요청 → 응답',expected:'—',answer:'…'});
-  const results=await Promise.all(['before','after'].map(async model=>{try{return await settle(model,instruction);}catch(e){return {model,verdict:'error',privy_raw:{error:String(e)},company:'',code:null,amount_wei:null};}}));
-  for(const r of results){render({side:r.model,code:r.code,state:r.verdict,note:noteFor(r),raw:{request:r.privy_request||null,response:r.privy_raw,model_answer:r.model_answer,prompt:r.prompt},expected:r.expected_code,answer:r.model_answer,to:r.to,verified:r.verified_recipient,hash:r.tx_hash,explorer:r.explorer,latency:r.latency_ms});
+  const batch=REG.filter(r=>instruction.includes(r.name)).length>1;
+  for(const s of['before','after']){render({side:s,code:null,state:'idle',note:'실행 중… 모델 질의 → Privy 서명 요청 → 응답',expected:'—',answer:'…'});$('#lane-'+s+' .code').style.fontSize='';}
+  const results=await Promise.all(['before','after'].map(async model=>{try{return await settle(model,instruction,batch);}catch(e){return {model,verdict:'error',privy_raw:{error:String(e)},company:'',code:null,amount_wei:null};}}));
+  for(const r of results){if(batch&&r.legs){renderBatch(r.model,r);continue;}
+    render({side:r.model,code:r.code,state:r.verdict,note:noteFor(r),raw:{request:r.privy_request||null,response:r.privy_raw,model_answer:r.model_answer,prompt:r.prompt},expected:r.expected_code,answer:r.model_answer,to:r.to,verified:r.verified_recipient,hash:r.tx_hash,explorer:r.explorer,latency:r.latency_ms});
     if(r.company)appendRow(rowFor(r));}
   $('#run').disabled=false;loadStatus();}
 $('#run').onclick=run;$('#instr').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
 async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
   $('#rail').innerHTML=[`<span class="${ST.mode==='privy'?'live':'mock'}">${ST.mode==='privy'?'LIVE':'MOCK'}</span>`,`에이전트 지갑 <b class="mono" title="${ST.wallet_address}">${ST.wallet_address}</b>`,`정책 <b class="mono">${ST.policy_id}</b>`,`잔액 <b class="mono">${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b>`,`체인 <b class="mono">${ST.caip2}</b>`,`건당 상한 <b class="mono">${eth(ST.amount_wei)}</b>`,`검증 수취인 <b class="mono">${ST.registry_size}</b>`].map(s=>`<span>${s}</span>`).join('');
   if(!$('#ledger').children.length)for(const r of (ST.ledger||[]))if(r.company)appendRow(rowFor(r));}
-async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();
+async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;
   $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="학습 전 모델의 생성">전: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
   const chips=$('#chips');['태양기계','엑시온그룹','성원에너텍','닷밀','KR모터스','픽셀플러스'].filter(n=>registry.some(r=>r.name===n)).forEach(n=>{const b=document.createElement('button');b.textContent=n+'에 대금 지급';b.onclick=()=>{$('#instr').value=n+'에 대금 지급';run();};chips.appendChild(b);});
   const multi=document.createElement('button');multi.textContent='태양기계, 픽셀플러스, 닷밀에 대금 지급 (3건)';multi.onclick=()=>{$('#instr').value='태양기계, 픽셀플러스, 닷밀에 대금 지급';run();};chips.appendChild(multi);}
