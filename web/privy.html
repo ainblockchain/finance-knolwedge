@@ -1,50 +1,86 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Privy</title>
 <link rel="stylesheet" href="style.css">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Design tokens (SPEC P0-4) — ground/surface/line/ink/ink-3; exec = Korean-market "up" red, deny = "down" blue */
-:root{--ground:#151110;--surface:#1D1817;--line:#332B28;--ink:#EFE8E4;--ink-3:#7E716B;--exec:#E8483C;--deny:#3E82D6}
-body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans KR",-apple-system,"Noto Sans KR",sans-serif;font-size:15px;line-height:1.55}
-nav{background:var(--surface);border-color:var(--line)}nav .brand{color:var(--ink)}nav a.on,nav a:hover{background:#2A2321;color:var(--ink)}
+/* Design system: modelled on dashboard.privy.io (light ground, indigo accent, white cards, hairline borders, status pills)
+   with editorial figures — large numerals, small letter-spaced labels, hairline dividers. Single column. */
+:root{--ground:#F5F5F9;--surface:#FFFFFF;--line:#E4E4EE;--line-2:#D3D3E0;--ink:#15152B;--ink-2:#4B4B63;--ink-3:#7C7C93;
+      --accent:#5B4CF5;--accent-soft:#EEEDFD;--accent-ink:#3F32C7;
+      --exec:#1E8E4A;--exec-soft:#E6F6EC;--deny:#D23F3F;--deny-soft:#FCEBEB;--warn:#B7791F;--warn-soft:#FFF4DF}
+body{background:var(--ground);color:var(--ink);font-family:"Inter",-apple-system,"Noto Sans KR",system-ui,sans-serif;font-size:14.5px;line-height:1.55}
+/* shared header stays as the rest of the demo has it */
+nav{background:#171a21;border-color:#262b36}nav .brand{color:#5aa9ff}nav a{color:#8b93a7}nav a.on,nav a:hover{background:#232836;color:#e6e8ee}
 .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:13px}
-main.privy{max-width:1180px;margin:0 auto;padding:0 20px 60px}
-/* Top rail: real values only, no rounding */
-.rail{display:flex;flex-wrap:wrap;gap:0 28px;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink-3);font-size:12.5px}
-.rail b{color:var(--ink);font-weight:500}.rail .live{color:var(--exec)}.rail .mock{color:var(--deny)}
-.hero{padding:40px 0 26px;border-bottom:1px solid var(--line)}
-.hero h1{font-size:30px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.01em}
-.hero p{max-width:820px;margin:0 0 10px;color:var(--ink)}.hero p.sub{color:var(--ink-3)}
-.nums{display:flex;gap:40px;margin-top:22px;flex-wrap:wrap}.nums a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--ink-3)}
-.nums .n{font-family:"IBM Plex Mono",monospace;font-size:28px;font-weight:500;font-variant-numeric:tabular-nums}.nums .n .from{color:var(--ink-3);font-size:18px}.nums .l{color:var(--ink-3);font-size:12.5px;margin-top:2px}
-.run{display:flex;gap:10px;margin:26px 0 12px}.run input{flex:1;background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:12px 14px;font:inherit;border-radius:3px}
-.run button{background:var(--ink);color:var(--ground);border:0;padding:12px 18px;font:inherit;font-weight:600;border-radius:3px;cursor:pointer}.run button:disabled{opacity:.45;cursor:default}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}.chips button{background:transparent;border:1px solid var(--line);color:var(--ink-3);padding:5px 10px;font:inherit;font-size:13px;border-radius:999px;cursor:pointer}.chips button:hover{color:var(--ink);border-color:var(--ink-3)}
+main.privy{max-width:1120px;margin:0 auto;padding:0 24px 72px}
+/* KPI strip — dashboard tiles */
+.rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:22px 0 0}
+.rail span{display:block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);overflow:hidden}
+.rail span b{display:block;margin-top:5px;font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail .live,.rail .mock{border-color:transparent}.rail .live{background:var(--exec-soft);color:var(--exec)}.rail .mock{background:var(--warn-soft);color:var(--warn)}
+.rail .live b,.rail .mock b{color:inherit;font-family:"Inter",sans-serif;font-weight:700}
+/* hero */
+.hero{padding:44px 0 30px;border-bottom:1px solid var(--line-2)}
+.hero h1{font-size:34px;line-height:1.2;margin:0 0 18px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.hero p{max-width:760px;margin:0 0 10px;color:var(--ink-2);font-size:15px}.hero p.sub{color:var(--ink-3)}.hero b{color:var(--ink);font-weight:600}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);margin-top:30px;border-top:1px solid var(--line-2)}
+@media(max-width:860px){.nums{grid-template-columns:repeat(2,1fr)}}
+.nums>div{padding:18px 18px 16px 0;border-right:1px solid var(--line);margin-right:18px}.nums>div:last-child{border-right:0}
+.nums .n{font-family:"IBM Plex Mono",monospace;font-size:34px;font-weight:400;letter-spacing:-.01em;color:var(--accent-ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.nums .n .from{color:var(--ink-3);font-size:18px}
+.nums .l{margin-top:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}.nums a{color:inherit;text-decoration:none}.nums a:hover{color:var(--accent)}
+/* run bar */
+.run{display:flex;gap:10px;margin:30px 0 12px}
+.run input{flex:1;background:var(--surface);border:1px solid var(--line-2);color:var(--ink);padding:12px 14px;font:inherit;border-radius:8px}
+.run input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.run button{background:var(--accent);color:#fff;border:0;padding:12px 18px;font:inherit;font-weight:600;border-radius:8px;cursor:pointer}
+.run button:hover{background:var(--accent-ink)}.run button:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+.chips button{background:var(--accent-soft);border:0;color:var(--accent-ink);padding:6px 11px;font:inherit;font-size:12.5px;font-weight:500;border-radius:999px;cursor:pointer}.chips button:hover{background:#E2E0FB}
+/* lanes */
 .lanes{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:860px){.lanes{grid-template-columns:1fr}}
-.lane{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;min-height:300px;display:flex;flex-direction:column;gap:10px}
-.lane .hd{display:flex;justify-content:space-between;align-items:baseline;color:var(--ink-3);font-size:12.5px}.lane .hd b{color:var(--ink);font-weight:500;font-size:14px}
-.lane .code{font-family:"IBM Plex Mono",monospace;font-size:52px;line-height:1;font-weight:500;letter-spacing:.02em;margin:8px 0 0;min-height:52px}
-.lane .code.deny{color:var(--deny)}.lane .code.exec{color:var(--exec)}.lane .code.idle,.lane .code.error{color:var(--ink-3)}
-.lane .exp{color:var(--ink-3);font-size:12.5px}.lane .exp b{color:var(--ink);font-weight:500}
-.pill{display:inline-block;padding:3px 9px;border-radius:2px;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;letter-spacing:.06em}
-.pill.deny{background:var(--deny);color:#0B1A2E}.pill.exec{background:var(--exec);color:#2A0906}.pill.error{background:var(--line);color:var(--ink)}.pill.idle{border:1px solid var(--line);color:var(--ink-3)}
-.lane .to{word-break:break-all;color:var(--ink-3)}.lane .to b{color:var(--ink);font-weight:500}
-.lane .note{color:var(--ink);font-size:14px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
-details summary{cursor:pointer;color:var(--ink-3);font-size:12.5px;user-select:none}
-pre.raw{background:var(--ground);border:1px solid var(--line);padding:12px;margin:8px 0 0;overflow:auto;max-height:280px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.45;color:var(--ink);border-radius:0}
-h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:40px 0 10px}
-table.ledger{width:100%;border-collapse:collapse}table.ledger th,table.ledger td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}
-table.ledger th{color:var(--ink-3);font-weight:500;font-size:12px}table.ledger td.mono,table.ledger th.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
-table.ledger a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--ink-3)}table.ledger .st-deny{color:var(--deny)}table.ledger .st-exec{color:var(--exec)}table.ledger .st-error{color:var(--ink-3)}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px;min-height:320px;display:flex;flex-direction:column;gap:10px}
+.lane .hd{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.lane .hd b{font-size:12px;color:var(--ink);font-weight:600;letter-spacing:.06em}
+.lane .code{font-family:"IBM Plex Mono",monospace;font-size:64px;line-height:1;font-weight:400;letter-spacing:-.01em;margin:10px 0 0;min-height:64px;color:var(--ink)}
+.lane .code.deny{color:var(--deny)}.lane .code.exec{color:var(--exec)}.lane .code.idle,.lane .code.error{color:var(--line-2)}
+.lane .exp{color:var(--ink-3);font-size:12.5px}.lane .exp b{color:var(--ink);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.deny{background:var(--deny-soft);color:var(--deny)}.pill.exec{background:var(--exec-soft);color:var(--exec)}.pill.error{background:var(--warn-soft);color:var(--warn)}.pill.idle{background:var(--ground);color:var(--ink-3)}
+.lane .to{word-break:break-all;color:var(--ink-3);font-size:13px}.lane .to b{color:var(--ink);font-weight:500}
+.lane .note{color:var(--ink-2);font-size:14px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+details summary{cursor:pointer;color:var(--accent-ink);font-size:12.5px;user-select:none;margin-top:6px}
+pre.raw{background:var(--ground);border:1px solid var(--line);padding:12px;margin:8px 0 0;overflow:auto;max-height:280px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.45;color:var(--ink-2);border-radius:6px}
+/* section labels */
+h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin:44px 0 12px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line-2)}
+/* ledger — dashboard table */
+table.ledger{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table.ledger th{background:var(--ground);color:var(--ink-3);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+table.ledger td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top;color:var(--ink-2)}
+table.ledger tr:last-child td{border-bottom:0}
+table.ledger td.mono,table.ledger th.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+table.ledger a{color:var(--accent-ink);text-decoration:none}table.ledger a:hover{text-decoration:underline}
+table.ledger .st-deny,table.ledger .st-exec,table.ledger .st-error{display:inline-block;padding:2px 9px;border-radius:999px;font-family:"Inter",sans-serif;font-size:11.5px;font-weight:600}
+table.ledger .st-deny{background:var(--deny-soft);color:var(--deny)}table.ledger .st-exec{background:var(--exec-soft);color:var(--exec)}table.ledger .st-error{background:var(--warn-soft);color:var(--warn)}
 table.ledger td.reason{color:var(--ink-3);max-width:360px}
-.reg{columns:2;column-gap:28px;font-size:13px}@media(max-width:860px){.reg{columns:1}}.reg div{break-inside:avoid;padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
-.reg .nm{min-width:96px}.reg .cd{color:var(--ink);font-weight:500}.reg .ad{color:var(--ink-3);word-break:break-all}.reg .bg{color:var(--deny);margin-left:auto;white-space:nowrap}
+/* how it works */
+.how{color:var(--ink-2);font-size:14px;max-width:820px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 22px}
+.how b{color:var(--ink);font-weight:600}.how ol{padding-left:18px;margin:12px 0}.how li{margin:8px 0}.how .mono{background:var(--ground);padding:1px 6px;border-radius:4px;color:var(--ink)}
+/* registry */
+.reg{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 18px}
+@media(max-width:860px){.reg{grid-template-columns:1fr}}
+.reg div{padding:8px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline}.reg div:nth-last-child(-n+2){border-bottom:0}
+.reg .nm{min-width:96px;color:var(--ink);font-weight:500}.reg .cd{color:var(--accent-ink);font-weight:500}.reg .ad{color:var(--ink-3);word-break:break-all}.reg .bg{color:var(--deny);margin-left:auto;white-space:nowrap}
+/* evidence */
 .shots{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}@media(max-width:860px){.shots{grid-template-columns:1fr}}
-.shot{background:var(--surface);border:1px solid var(--line);margin:0}.shot figcaption{padding:8px 12px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line)}
-.shot-empty{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12.5px;text-align:center;padding:16px}.shot img{display:block;width:100%}
-.how{color:var(--ink-3);font-size:13.5px;max-width:820px}.how b{color:var(--ink);font-weight:500}.how ol{padding-left:18px;margin:6px 0}
+.shot{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:0}
+.shot figcaption{padding:10px 14px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line)}
+.shot-empty{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12.5px;text-align:center;padding:16px;background:var(--ground)}
+.shot img{display:block;width:100%}
 </style></head><body><script src="nav.js"></script>
 <main class="privy">
-<div class="rail" id="rail"><span>Loading status…</span></div>
+<div class="rail" id="rail"><span>status<b>loading…</b></span></div>
 
 <section class="hero">
 <h1>A hallucinated identifier is never paid.<br>Same wallet, same policy, same code — only the model changes.</h1>
@@ -62,11 +98,11 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 <div class="chips" id="chips"></div>
 
 <div class="lanes">
-  <div class="lane" id="lane-before"><div class="hd"><b>Before training · base model</b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">IDLE</span></div><div class="to">recipient —</div><div class="note">Run to attempt a real payment from the Privy wallet, routed by this model's answer.</div></div>
-  <div class="lane" id="lane-after"><div class="hd"><b>After training · model that learned the tickers</b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">IDLE</span></div><div class="to">recipient —</div><div class="note">Both lanes go through the same wallet, the same policy and the same code path. The verdict (DENY / EXEC) is derived only from Privy's response.</div></div>
+  <div class="lane" id="lane-before"><div class="hd"><b>Before training · base model</b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">Idle</span></div><div class="to">recipient —</div><div class="note">Run to attempt a real payment from the Privy wallet, routed by this model's answer.</div></div>
+  <div class="lane" id="lane-after"><div class="hd"><b>After training · model that learned the tickers</b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">Idle</span></div><div class="to">recipient —</div><div class="note">Both lanes go through the same wallet, the same policy and the same code path. The verdict (DENY / EXEC) is derived only from Privy's response.</div></div>
 </div>
 
-<h2>Ledger — every payment this wallet attempted</h2>
+<h2>Transactions — every payment this wallet attempted</h2>
 <table class="ledger"><thead><tr><th>time</th><th>company</th><th>model</th><th class="mono">code</th><th class="mono">amount</th><th>verdict</th><th>reason (Privy, verbatim)</th><th>tx</th></tr></thead><tbody id="ledger"></tbody></table>
 
 <h2>How it works</h2>
@@ -97,7 +133,7 @@ function render({side,code,state,note,raw,expected,answer,to,verified,hash,explo
   const L=$('#lane-'+side);const st=state||'idle';
   L.querySelector('.code').className='code '+st;L.querySelector('.code').textContent=code||'——————';
   L.querySelector('.exp').innerHTML=`expected <b>${esc(expected||'—')}</b> · model answer <span class="mono">${esc(answer??'—')}</span>${latency?` · <span class="mono">${latency} ms</span>`:''}`;
-  const label={deny:'DENY · signature refused',exec:'EXEC · settled',error:'ERROR',idle:'IDLE'}[st];
+  const label={deny:'Denied · signature refused',exec:'Settled · on-chain',error:'Error',idle:'Idle'}[st];
   L.querySelector('.pill').outerHTML=`<span class="pill ${st}">${label}</span>`;
   L.querySelector('.to').innerHTML=to?`recipient <b class="mono">${esc(to)}</b> · ${verified?'verified recipient (in registry)':'<span style="color:var(--deny)">unverified — derived from a code that is not in the registry</span>'}${hash?` · <a class="mono" style="color:var(--ink)" target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:''}`:'recipient —';
   L.querySelector('.note').innerHTML=esc(note||'')+(raw?`<details><summary>request · response, verbatim</summary><pre class="raw">${esc(JSON.stringify(raw,null,1))}</pre></details>`:'');
@@ -105,7 +141,7 @@ function render({side,code,state,note,raw,expected,answer,to,verified,hash,explo
 /* ───── hook 2: ledger row ───── */
 function appendRow({time,name,model,code,amount,state,reason,hash,explorer}){
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?'before':'after'}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td class="mono st-${state}">${state.toUpperCase()}</td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
+  tr.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?'before':'after'}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td><span class="st-${state}">${{deny:'Denied',exec:'Settled',error:'Error'}[state]||state}</span></td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
   $('#ledger').prepend(tr);
 }
 /* ───── wiring ───── */
@@ -133,7 +169,8 @@ async function run(){const instruction=$('#instr').value.trim();if(!instruction)
   $('#run').disabled=false;loadStatus();}
 $('#run').onclick=run;$('#instr').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
 async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
-  $('#rail').innerHTML=[`<span class="${ST.mode==='privy'?'live':'mock'}">${ST.mode==='privy'?'LIVE':'MOCK'}</span>`,`agent wallet <b class="mono" title="${ST.wallet_address}">${ST.wallet_address}</b>`,`policy <b class="mono">${ST.policy_id}</b>`,`balance <b class="mono">${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b>`,`chain <b class="mono">${ST.caip2}</b>`,`per-settlement cap <b class="mono">${eth(ST.amount_wei)}</b>`,`verified recipients <b class="mono">${ST.registry_size}</b>`].map(s=>`<span>${s}</span>`).join('');
+  const live=ST.mode==='privy';
+  $('#rail').innerHTML=[`<span class="${live?'live':'mock'}">mode<b>${live?'Live · Privy TEE wallet':'Mock · not connected'}</b></span>`,`<span>agent wallet<b title="${ST.wallet_address}">${ST.wallet_address}</b></span>`,`<span>policy<b>${ST.policy_id}</b></span>`,`<span>balance<b>${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b></span>`,`<span>chain<b>${ST.caip2}</b></span>`,`<span>per-settlement cap<b>${eth(ST.amount_wei)}</b></span>`,`<span>verified recipients<b>${ST.registry_size}</b></span>`].join('');
   if(!$('#ledger').children.length)for(const r of (ST.ledger||[]))if(r.company)appendRow(rowFor(r));}
 async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;
   $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="what the base model generated">base: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
