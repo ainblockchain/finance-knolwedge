@@ -66,7 +66,7 @@ details summary{cursor:pointer;color:var(--mute);font-size:13px}details pre{marg
 <div class="chips">
   <button id="t-over">① 한도 초과 — 공급자에게 100배 금액</button>
   <button id="t-other">② 다른 수취인 — 화이트리스트 밖 주소로 상한 금액</button>
-  <button id="t-drain">③ 트레저리 탈취 시도 — 다른 주소로 1 ETH</button>
+  <button id="t-drain">③ 트레저리 탈취 시도 — 다른 주소로 0.01 ETH (상한의 1,000배)</button>
   <button id="t-sign">④ 허용되지 않은 메서드 — personal_sign 으로 서명 요청 (가스 불필요)</button>
   <button id="t-ok" class="sec">⑤ 정상 소액 — 공급자에게 상한 이하 (실제 전송됨)</button>
 </div>
@@ -134,7 +134,7 @@ async function tryTx(label,to,value_wei,method){const tb=$('tries');const tr=doc
 const OTHER='0x000000000000000000000000000000000000dead';
 $('t-over').onclick=()=>tryTx('한도 초과 (100배)',ST.provider,BigInt(ST.price_wei)*100n);
 $('t-other').onclick=()=>tryTx('다른 수취인',OTHER,BigInt(ST.price_wei));
-$('t-drain').onclick=()=>tryTx('트레저리 탈취 시도 (1 ETH)',OTHER,10n**18n);
+$('t-drain').onclick=()=>tryTx('트레저리 탈취 시도 (0.01 ETH)',OTHER,10n**16n);/* 잔액보다 큰 금액은 정책 판정 전 시뮬레이션에서 먼저 실패하므로, 잔액 안이면서 상한 밖인 금액으로 정책 거부를 보인다 */
 $('t-sign').onclick=()=>tryTx('허용되지 않은 메서드',null,0n,'personal_sign');
 $('t-ok').onclick=()=>tryTx('정상 소액',ST.provider,BigInt(ST.price_wei));
 loadStatus();setInterval(loadStatus,15000);
