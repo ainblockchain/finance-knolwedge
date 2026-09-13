@@ -22,7 +22,7 @@ main.privy{max-width:1120px;margin:0 auto;padding:0 24px 72px}
 /* hero */
 .hero-body{display:grid;grid-template-columns:1fr 400px;gap:28px;align-items:start}@media(max-width:900px){.hero-body{grid-template-columns:1fr}}
 .anim-card{background:linear-gradient(180deg,#F7F6FE 0%,#FFFFFF 100%);border:1px solid #E2DFFA;border-radius:12px;padding:14px}.anim-card svg{display:block;width:100%;height:auto}
-.diagram{margin:26px 0 22px;padding:22px 24px 10px;background:linear-gradient(180deg,#F7F6FE 0%,#FFFFFF 100%);border:1px solid #E2DFFA;border-radius:12px}
+.diagram{margin:28px 0 6px;padding:22px 24px 10px;background:linear-gradient(180deg,#F7F6FE 0%,#FFFFFF 100%);border:1px solid #E2DFFA;border-radius:12px}
 .diagram svg{display:block;width:100%;height:auto}
 @media(max-width:700px){.diagram{display:none}}
 .hero{padding:44px 0 30px;border-bottom:1px solid var(--line-2)}
@@ -91,6 +91,46 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 <section class="hero">
 <h1>A hallucinated identifier is never paid.<br>Same wallet, same policy, same code — only the model changes.</h1>
 
+
+<div class="hero-body"><div class="hero-text"><p>The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.</p>
+<p class="sub">The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy's Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.</p>
+</div><aside class="hero-aside"><div class="anim-card"><svg class="flow-anim" viewBox="0 0 440 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated: one instruction, two models, one Privy policy">
+<defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#C9C4FA"/></marker>
+<linearGradient id="ftee" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EEEDFD"/><stop offset="1" stop-color="#DDD9FB"/></linearGradient></defs>
+<style>.ft{font-family:Inter,system-ui,sans-serif;font-size:11px;fill:#4B4B63}.fk{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;fill:#7C7C93}.fm{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:#15152B}.fl{stroke:#D3D3E0;stroke-width:1.2;fill:none;stroke-dasharray:3 4}</style>
+<!-- static skeleton -->
+<path d="M220 38 L120 110" class="fl" marker-end="url(#fa)"/><path d="M220 38 L320 110" class="fl" marker-end="url(#fa)"/>
+<path d="M120 130 L120 175" class="fl"/><path d="M320 130 L320 175" class="fl"/>
+<path d="M120 215 L127 250" class="fl" marker-end="url(#fa)"/><path d="M320 215 L313 250" class="fl" marker-end="url(#fa)"/>
+<path d="M127 330 L70 355" class="fl"/><path d="M313 330 L370 355" class="fl"/>
+<rect x="132" y="14" width="176" height="46" rx="23" fill="#EEEDFD" stroke="#C9C4FA"/>
+<text x="220" y="32" text-anchor="middle" class="ft fk">instruction</text><text x="220" y="49" text-anchor="middle" class="fm" font-size="12">태양기계에 대금 지급</text>
+<rect x="40" y="88" width="160" height="44" rx="8" fill="#fff" stroke="#D3D3E0"/><text x="120" y="106" text-anchor="middle" class="ft fk">base model</text><text x="120" y="123" text-anchor="middle" class="ft">19.0% ticker accuracy</text>
+<rect x="240" y="88" width="160" height="44" rx="8" fill="#EEEDFD" stroke="#C9C4FA"/><text x="320" y="106" text-anchor="middle" class="ft fk">trained · 0.084% edited</text><text x="320" y="123" text-anchor="middle" class="ft">100.0% ticker accuracy</text>
+<rect x="120" y="250" width="200" height="80" rx="12" fill="url(#ftee)" stroke="#5B4CF5" stroke-width="1.4"/>
+<text x="220" y="272" text-anchor="middle" class="ft fk" fill="#3F32C7">Privy policy engine · TEE</text>
+<text x="220" y="292" text-anchor="middle" class="fm" font-size="9.5">to ∈ verified ∧ value ≤ cap</text><text x="220" y="308" text-anchor="middle" class="ft" fill="#3F32C7">else DENY</text>
+<text x="220" y="322" text-anchor="middle" class="ft fk">same wallet · same policy</text>
+<!-- pulse on the engine while evaluating -->
+<rect x="116" y="246" width="208" height="88" rx="14" fill="none" stroke="#5B4CF5" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.583;0.62;0.66;0.70;1" values="0;0;.6;.15;0;0"/></rect>
+<!-- ticker + recipient (appear) -->
+<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.25;0.30;1" values="0;0;1;1"/>
+<text x="120" y="168" text-anchor="middle" class="fm" font-size="24" fill="#D23F3F">033240</text><text x="120" y="183" text-anchor="middle" class="ft fk" fill="#D23F3F">hallucinated</text>
+<text x="320" y="168" text-anchor="middle" class="fm" font-size="24" fill="#1E8E4A">116100</text><text x="320" y="183" text-anchor="middle" class="ft fk" fill="#1E8E4A">correct</text></g>
+<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.40;0.45;1" values="0;0;1;1"/>
+<text x="120" y="207" text-anchor="middle" class="fm" font-size="10">0x264186…2ecc0 ∉ allowlist</text><text x="320" y="207" text-anchor="middle" class="fm" font-size="10">0x1e28cd…7eea ∈ allowlist</text></g>
+<!-- verdict pills -->
+<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.80;0.84;1" values="0;0;1;1"/>
+<rect x="28" y="340" width="84" height="30" rx="15" fill="#FCEBEB"/><text x="70" y="359" text-anchor="middle" class="ft" font-weight="600" fill="#D23F3F">Denied</text>
+<rect x="328" y="340" width="84" height="30" rx="15" fill="#E6F6EC"/><text x="370" y="359" text-anchor="middle" class="ft" font-weight="600" fill="#1E8E4A">Settled</text></g>
+<!-- travelling dots: hold → move → hold, on a 6 s shared clock -->
+<circle r="6" fill="#5B4CF5" stroke="#fff" stroke-width="2">
+ <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear" path="M220 38 L120 110 L120 175 L127 290 L70 355" keyTimes="0;0.083;0.217;0.30;0.383;0.45;0.583;0.70;0.817;1" keyPoints="0;0;0.313;0.313;0.478;0.478;0.772;0.772;1;1"/>
+ <animate attributeName="fill" dur="6s" repeatCount="indefinite" keyTimes="0;0.70;0.701;1" values="#5B4CF5;#5B4CF5;#D23F3F;#D23F3F"/><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.04;0.80;0.84;1" values="0;1;1;0;0"/></circle>
+<circle r="6" fill="#5B4CF5" stroke="#fff" stroke-width="2">
+ <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear" path="M220 38 L320 110 L320 175 L313 290 L370 355" keyTimes="0;0.083;0.217;0.30;0.383;0.45;0.583;0.70;0.817;1" keyPoints="0;0;0.313;0.313;0.478;0.478;0.772;0.772;1;1"/>
+ <animate attributeName="fill" dur="6s" repeatCount="indefinite" keyTimes="0;0.70;0.701;1" values="#5B4CF5;#5B4CF5;#1E8E4A;#1E8E4A"/><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.04;0.80;0.84;1" values="0;1;1;0;0"/></circle>
+</svg></div></aside></div>
 <figure class="diagram" aria-label="Flow: one instruction, two models, one Privy policy — hallucinated ticker denied, correct ticker settled">
 <svg viewBox="0 0 1080 330" xmlns="http://www.w3.org/2000/svg" role="img">
 <defs>
@@ -169,45 +209,6 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 <text x="0" y="322" class="t sm">recipient = 0x + keccak256("ticker:" + code)[12:] · two independent layers: knowledge correction fixes the identifier, authority enforcement refuses to sign for anything else.</text>
 </svg>
 </figure>
-<div class="hero-body"><div class="hero-text"><p>The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.</p>
-<p class="sub">The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy's Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.</p>
-</div><aside class="hero-aside"><div class="anim-card"><svg class="flow-anim" viewBox="0 0 440 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated: one instruction, two models, one Privy policy">
-<defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#C9C4FA"/></marker>
-<linearGradient id="ftee" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EEEDFD"/><stop offset="1" stop-color="#DDD9FB"/></linearGradient></defs>
-<style>.ft{font-family:Inter,system-ui,sans-serif;font-size:11px;fill:#4B4B63}.fk{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;fill:#7C7C93}.fm{font-family:"IBM Plex Mono",ui-monospace,monospace;fill:#15152B}.fl{stroke:#D3D3E0;stroke-width:1.2;fill:none;stroke-dasharray:3 4}</style>
-<!-- static skeleton -->
-<path d="M220 38 L120 110" class="fl" marker-end="url(#fa)"/><path d="M220 38 L320 110" class="fl" marker-end="url(#fa)"/>
-<path d="M120 130 L120 175" class="fl"/><path d="M320 130 L320 175" class="fl"/>
-<path d="M120 215 L127 250" class="fl" marker-end="url(#fa)"/><path d="M320 215 L313 250" class="fl" marker-end="url(#fa)"/>
-<path d="M127 330 L70 355" class="fl"/><path d="M313 330 L370 355" class="fl"/>
-<rect x="132" y="14" width="176" height="46" rx="23" fill="#EEEDFD" stroke="#C9C4FA"/>
-<text x="220" y="32" text-anchor="middle" class="ft fk">instruction</text><text x="220" y="49" text-anchor="middle" class="fm" font-size="12">태양기계에 대금 지급</text>
-<rect x="40" y="88" width="160" height="44" rx="8" fill="#fff" stroke="#D3D3E0"/><text x="120" y="106" text-anchor="middle" class="ft fk">base model</text><text x="120" y="123" text-anchor="middle" class="ft">19.0% ticker accuracy</text>
-<rect x="240" y="88" width="160" height="44" rx="8" fill="#EEEDFD" stroke="#C9C4FA"/><text x="320" y="106" text-anchor="middle" class="ft fk">trained · 0.084% edited</text><text x="320" y="123" text-anchor="middle" class="ft">100.0% ticker accuracy</text>
-<rect x="120" y="250" width="200" height="80" rx="12" fill="url(#ftee)" stroke="#5B4CF5" stroke-width="1.4"/>
-<text x="220" y="272" text-anchor="middle" class="ft fk" fill="#3F32C7">Privy policy engine · TEE</text>
-<text x="220" y="292" text-anchor="middle" class="fm" font-size="9.5">to ∈ verified ∧ value ≤ cap</text><text x="220" y="308" text-anchor="middle" class="ft" fill="#3F32C7">else DENY</text>
-<text x="220" y="322" text-anchor="middle" class="ft fk">same wallet · same policy</text>
-<!-- pulse on the engine while evaluating -->
-<rect x="116" y="246" width="208" height="88" rx="14" fill="none" stroke="#5B4CF5" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.583;0.62;0.66;0.70;1" values="0;0;.6;.15;0;0"/></rect>
-<!-- ticker + recipient (appear) -->
-<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.25;0.30;1" values="0;0;1;1"/>
-<text x="120" y="168" text-anchor="middle" class="fm" font-size="24" fill="#D23F3F">033240</text><text x="120" y="183" text-anchor="middle" class="ft fk" fill="#D23F3F">hallucinated</text>
-<text x="320" y="168" text-anchor="middle" class="fm" font-size="24" fill="#1E8E4A">116100</text><text x="320" y="183" text-anchor="middle" class="ft fk" fill="#1E8E4A">correct</text></g>
-<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.40;0.45;1" values="0;0;1;1"/>
-<text x="120" y="207" text-anchor="middle" class="fm" font-size="10">0x264186…2ecc0 ∉ allowlist</text><text x="320" y="207" text-anchor="middle" class="fm" font-size="10">0x1e28cd…7eea ∈ allowlist</text></g>
-<!-- verdict pills -->
-<g opacity="0"><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.80;0.84;1" values="0;0;1;1"/>
-<rect x="28" y="340" width="84" height="30" rx="15" fill="#FCEBEB"/><text x="70" y="359" text-anchor="middle" class="ft" font-weight="600" fill="#D23F3F">Denied</text>
-<rect x="328" y="340" width="84" height="30" rx="15" fill="#E6F6EC"/><text x="370" y="359" text-anchor="middle" class="ft" font-weight="600" fill="#1E8E4A">Settled</text></g>
-<!-- travelling dots: hold → move → hold, on a 6 s shared clock -->
-<circle r="6" fill="#5B4CF5" stroke="#fff" stroke-width="2">
- <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear" path="M220 38 L120 110 L120 175 L127 290 L70 355" keyTimes="0;0.083;0.217;0.30;0.383;0.45;0.583;0.70;0.817;1" keyPoints="0;0;0.313;0.313;0.478;0.478;0.772;0.772;1;1"/>
- <animate attributeName="fill" dur="6s" repeatCount="indefinite" keyTimes="0;0.70;0.701;1" values="#5B4CF5;#5B4CF5;#D23F3F;#D23F3F"/><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.04;0.80;0.84;1" values="0;1;1;0;0"/></circle>
-<circle r="6" fill="#5B4CF5" stroke="#fff" stroke-width="2">
- <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear" path="M220 38 L320 110 L320 175 L313 290 L370 355" keyTimes="0;0.083;0.217;0.30;0.383;0.45;0.583;0.70;0.817;1" keyPoints="0;0;0.313;0.313;0.478;0.478;0.772;0.772;1;1"/>
- <animate attributeName="fill" dur="6s" repeatCount="indefinite" keyTimes="0;0.70;0.701;1" values="#5B4CF5;#5B4CF5;#1E8E4A;#1E8E4A"/><animate attributeName="opacity" dur="6s" repeatCount="indefinite" keyTimes="0;0.04;0.80;0.84;1" values="0;1;1;0;0"/></circle>
-</svg></div></aside></div>
 <div class="nums">
   <div><div class="n">100.0%</div><div class="l"><a href="bench.html">template accuracy, 2,761 tickers · was 19.0%</a></div></div>
   <div><div class="n">2,237</div><div class="l"><a href="bench.html">tickers moved from wrong to right</a></div></div>
