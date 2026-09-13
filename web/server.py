@@ -106,6 +106,12 @@ class H(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=ROOT, **k)
     def log_message(self, *a): pass
 
+    def end_headers(self):
+        # 정적 파일(nav.js 등)에 캐시 헤더가 없어 브라우저가 옛 탭 이름을 붙들고 있었다. 데모 파일은 늘 다시 확인하게 한다.
+        if not any(h.lower().startswith(b"cache-control") for h in getattr(self, "_headers_buffer", [])):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def _json(self, obj, code=200):
         b = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(code); self.send_header("Content-Type", "application/json; charset=utf-8")
