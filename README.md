@@ -224,18 +224,20 @@ PLE 테이블은 기동 시 호스트 RAM으로 오프로드되므로, 디스크
   **https://aindrive.ainetwork.ai/d/VObK2uop7hs9** (받는 방법: [docs/09-패치-사용법.md](docs/09-패치-사용법.md)).
 - 실행 스크립트는 `sudo docker`를 직접 호출한다. 무암호 sudo 또는 docker 그룹 권한이 필요하다.
 
-## Privy — 이름으로 라우팅되는 지급 (ETHOnline 2026 제출)
+## Privy — settlement routed by verified identifiers (ETHOnline 2026 submission)
 
-탭 **Privy** (`web/privy.html`). 종목코드가 결제 라우팅 키다: 회사명 → 6자리 코드 → 코드에서 파생된 수취 주소
-(`0x + keccak256("ticker:" + code)[12:]`). 에이전트의 트레저리는 Privy 서버 지갑이고, Privy 정책 엔진이
-검증된 티커의 주소가 아니면 **서명 자체를 거부**한다. 같은 지시를 학습 전 모델과 학습 후 모델로 돌리면 전자는
-환각한 코드 때문에 DENY, 후자는 체결된다. 방어는 두 겹이고 독립이다: 지식 교정(이 저장소의 연구) + 권한 강제(Privy).
+Tab **Privy** (`web/privy.html`). The stock ticker is the payment routing key: company name → 6-digit code → recipient
+address derived from the code (`0x + keccak256("ticker:" + code)[12:]`). The agent's treasury is a Privy server wallet,
+and Privy's policy engine **refuses to sign** unless the recipient is the address of a verified ticker. Run the same
+instruction through the base model and the trained model: the former is DENIED because of its hallucinated code, the
+latter settles. Two independent layers: knowledge correction (this repository's research) + authority enforcement (Privy).
 
-- 셋업·운영·API: [docs/privy.md](docs/privy.md) · 제출문: [SUBMISSION.md](SUBMISSION.md) · 작업 지시서: [SPEC.md](SPEC.md)
-- 코드: `web/privy_pay.py` (레지스트리·정책·`/settle`), `web/registry.json`, `web/test_privy_pay.py`, `web/deploy.sh`
-- 체결 tx (Sepolia): `0x8811fe45dae8b5ee246ce4ea47cc641824e01fa59cd2147cddbf92d12c10dfab` · 정책 `sh2rb434k1bjfd00xmigksxw`
+- Setup, operations, API: [docs/privy.md](docs/privy.md) · submission: [SUBMISSION.md](SUBMISSION.md) · work order: [SPEC.md](SPEC.md)
+- Code: `web/privy_pay.py` (registry, policy, `/settle`), `web/registry.json`, `web/test_privy_pay.py`, `web/deploy.sh`
+- Settled tx (Sepolia): `0x8811fe45dae8b5ee246ce4ea47cc641824e01fa59cd2147cddbf92d12c10dfab` · policy `sh2rb434k1bjfd00xmigksxw`
 
-**AI 툴 사용 명시.** Privy 경로(`web/privy_pay.py`, `web/privy.html`, `web/registry.json`, `web/test_privy_pay.py`,
-`web/deploy.sh`, `docs/privy.md`, `SUBMISSION.md`)는 `SPEC.md` 를 작업 지시서로 하여 Claude Code(Claude Fable 5.1)로
-작성했고, 사람이 방향·검증·자격증명·가스 충전을 맡았다. 트랜잭션 해시·정책 id·정확도 수치는 전부 실행해서 얻은 값이다.
-그 외 데모 페이지와 학습 코드는 이번 작업에서 손대지 않았다.
+**AI tooling disclosure.** The Privy path (`web/privy_pay.py`, `web/privy.html`, `web/registry.json`,
+`web/test_privy_pay.py`, `web/deploy.sh`, `docs/privy.md`, `SUBMISSION.md`) was written with Claude Code (Claude Fable 5.1)
+driven by `SPEC.md` as the work order; humans set direction, verified results, and supplied credentials and gas. Every
+transaction hash, policy id and accuracy figure is a measured value. The other demo pages and the training code were not
+touched in this work.

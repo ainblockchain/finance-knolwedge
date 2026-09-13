@@ -1,32 +1,29 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>Privy</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Privy</title>
 <link rel="stylesheet" href="style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* 디자인 토큰 (SPEC P0-4) — ground/surface/line/ink/ink-3, exec=한국 시장 상승색, deny=하락색 */
+/* Design tokens (SPEC P0-4) — ground/surface/line/ink/ink-3; exec = Korean-market "up" red, deny = "down" blue */
 :root{--ground:#151110;--surface:#1D1817;--line:#332B28;--ink:#EFE8E4;--ink-3:#7E716B;--exec:#E8483C;--deny:#3E82D6}
 body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans KR",-apple-system,"Noto Sans KR",sans-serif;font-size:15px;line-height:1.55}
 nav{background:var(--surface);border-color:var(--line)}nav .brand{color:var(--ink)}nav a.on,nav a:hover{background:#2A2321;color:var(--ink)}
 .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:13px}
 main.privy{max-width:1180px;margin:0 auto;padding:0 20px 60px}
-/* 상단 레일: 실제 값만. 라운딩 없음 */
+/* Top rail: real values only, no rounding */
 .rail{display:flex;flex-wrap:wrap;gap:0 28px;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink-3);font-size:12.5px}
 .rail b{color:var(--ink);font-weight:500}.rail .live{color:var(--exec)}.rail .mock{color:var(--deny)}
-/* 히어로 */
 .hero{padding:40px 0 26px;border-bottom:1px solid var(--line)}
 .hero h1{font-size:30px;line-height:1.25;margin:0 0 14px;font-weight:600;letter-spacing:-.01em}
 .hero p{max-width:820px;margin:0 0 10px;color:var(--ink)}.hero p.sub{color:var(--ink-3)}
 .nums{display:flex;gap:40px;margin-top:22px;flex-wrap:wrap}.nums a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--ink-3)}
 .nums .n{font-family:"IBM Plex Mono",monospace;font-size:28px;font-weight:500;font-variant-numeric:tabular-nums}.nums .n .from{color:var(--ink-3);font-size:18px}.nums .l{color:var(--ink-3);font-size:12.5px;margin-top:2px}
-/* 실행 바 */
 .run{display:flex;gap:10px;margin:26px 0 12px}.run input{flex:1;background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:12px 14px;font:inherit;border-radius:3px}
 .run button{background:var(--ink);color:var(--ground);border:0;padding:12px 18px;font:inherit;font-weight:600;border-radius:3px;cursor:pointer}.run button:disabled{opacity:.45;cursor:default}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}.chips button{background:transparent;border:1px solid var(--line);color:var(--ink-3);padding:5px 10px;font:inherit;font-size:13px;border-radius:999px;cursor:pointer}.chips button:hover{color:var(--ink);border-color:var(--ink-3)}
-/* 두 레인 */
 .lanes{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:860px){.lanes{grid-template-columns:1fr}}
 .lane{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;min-height:300px;display:flex;flex-direction:column;gap:10px}
 .lane .hd{display:flex;justify-content:space-between;align-items:baseline;color:var(--ink-3);font-size:12.5px}.lane .hd b{color:var(--ink);font-weight:500;font-size:14px}
 .lane .code{font-family:"IBM Plex Mono",monospace;font-size:52px;line-height:1;font-weight:500;letter-spacing:.02em;margin:8px 0 0;min-height:52px}
-.lane .code.deny{color:var(--deny)}.lane .code.exec{color:var(--exec)}.lane .code.idle{color:var(--ink-3)}
+.lane .code.deny{color:var(--deny)}.lane .code.exec{color:var(--exec)}.lane .code.idle,.lane .code.error{color:var(--ink-3)}
 .lane .exp{color:var(--ink-3);font-size:12.5px}.lane .exp b{color:var(--ink);font-weight:500}
 .pill{display:inline-block;padding:3px 9px;border-radius:2px;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500;letter-spacing:.06em}
 .pill.deny{background:var(--deny);color:#0B1A2E}.pill.exec{background:var(--exec);color:#2A0906}.pill.error{background:var(--line);color:var(--ink)}.pill.idle{border:1px solid var(--line);color:var(--ink-3)}
@@ -34,103 +31,100 @@ main.privy{max-width:1180px;margin:0 auto;padding:0 20px 60px}
 .lane .note{color:var(--ink);font-size:14px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
 details summary{cursor:pointer;color:var(--ink-3);font-size:12.5px;user-select:none}
 pre.raw{background:var(--ground);border:1px solid var(--line);padding:12px;margin:8px 0 0;overflow:auto;max-height:280px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.45;color:var(--ink);border-radius:0}
-/* 원장 */
 h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:40px 0 10px}
 table.ledger{width:100%;border-collapse:collapse}table.ledger th,table.ledger td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}
 table.ledger th{color:var(--ink-3);font-weight:500;font-size:12px}table.ledger td.mono,table.ledger th.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
 table.ledger a{color:var(--ink);text-decoration:none;border-bottom:1px dotted var(--ink-3)}table.ledger .st-deny{color:var(--deny)}table.ledger .st-exec{color:var(--exec)}table.ledger .st-error{color:var(--ink-3)}
 table.ledger td.reason{color:var(--ink-3);max-width:360px}
-/* 레지스트리 · 증거 */
 .reg{columns:2;column-gap:28px;font-size:13px}@media(max-width:860px){.reg{columns:1}}.reg div{break-inside:avoid;padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
 .reg .nm{min-width:96px}.reg .cd{color:var(--ink);font-weight:500}.reg .ad{color:var(--ink-3);word-break:break-all}.reg .bg{color:var(--deny);margin-left:auto;white-space:nowrap}
 .shots{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:860px){.shots{grid-template-columns:1fr}}
-.shot{background:var(--surface);border:1px solid var(--line)}.shot figcaption{padding:8px 12px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line)}
+.shot{background:var(--surface);border:1px solid var(--line);margin:0}.shot figcaption{padding:8px 12px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line)}
 .shot-empty{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12.5px;text-align:center;padding:16px}.shot img{display:block;width:100%}
 .how{color:var(--ink-3);font-size:13.5px;max-width:820px}.how b{color:var(--ink);font-weight:500}.how ol{padding-left:18px;margin:6px 0}
 </style></head><body><script src="nav.js"></script>
 <main class="privy">
-<div class="rail" id="rail"><span>상태를 불러오는 중…</span></div>
+<div class="rail" id="rail"><span>Loading status…</span></div>
 
 <section class="hero">
-<h1>환각한 식별자는 지급되지 않는다.<br>같은 지갑, 같은 정책, 같은 코드 — 모델만 바꾼다.</h1>
-<p>에이전틱 금융의 실제 사고는 "돈을 너무 많이 씀"이 아니라 <b>식별자를 환각해 엉뚱한 상대에게 보냄</b>입니다. 원본 모델은 태양기계의 종목코드를 물으면 <span class="mono">033240</span>처럼 형식은 완벽하고 값만 틀린 코드를 답합니다. 조회라면 오답 한 건이지만, 결제에서는 실재하는 다른 회사로 송금이 나가고 되돌릴 수 없습니다.</p>
-<p class="sub">방어는 두 겹이고 서로 독립입니다. 지식 교정(모델이 올바른 식별자를 내게 함)은 우리 연구가, 권한 강제(검증된 식별자에 매핑된 주소가 아니면 <b>서명 자체를 거부</b>)는 Privy Policy Engine이 TEE 안에서 합니다. 아래에서 종목코드가 결제 라우팅 키입니다: 회사명 → 6자리 코드 → 코드에서 파생된 수취 주소. 레지스트리에 있는 코드의 주소만 정책이 허용합니다.</p>
+<h1>A hallucinated identifier is never paid.<br>Same wallet, same policy, same code — only the model changes.</h1>
+<p>The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.</p>
+<p class="sub">The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy's Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.</p>
 <div class="nums">
-  <div><div class="n"><span class="from">19.0%</span> → 100.0%</div><div class="l"><a href="bench.html">템플릿 정확도, 2,761 종목 · 벤치마크</a></div></div>
-  <div><div class="n">2,237</div><div class="l"><a href="bench.html">실패 → 성공 전이 종목</a></div></div>
-  <div><div class="n">0.084%</div><div class="l"><a href="method.html">바뀐 파라미터 · 백본 불변</a></div></div>
-  <div><div class="n"><span class="from">13%</span> → 97%</div><div class="l"><a href="bench.html">채팅 형식 정확도, 60 표본</a></div></div>
+  <div><div class="n"><span class="from">19.0%</span> → 100.0%</div><div class="l"><a href="bench.html">template accuracy, 2,761 tickers · benchmark</a></div></div>
+  <div><div class="n">2,237</div><div class="l"><a href="bench.html">tickers moved from wrong to right</a></div></div>
+  <div><div class="n">0.084%</div><div class="l"><a href="method.html">parameters changed · backbone untouched</a></div></div>
+  <div><div class="n"><span class="from">13%</span> → 97%</div><div class="l"><a href="bench.html">chat-format accuracy, 60 samples</a></div></div>
 </div>
 </section>
 
-<div class="run"><input id="instr" value="태양기계에 대금 지급" spellcheck="false"><button id="run">양쪽 모델로 지급 실행</button></div>
+<div class="run"><input id="instr" value="태양기계에 대금 지급" spellcheck="false" title='Instruction in Korean: "pay 태양기계". The company name is the model input.'><button id="run">Run settlement on both models</button></div>
 <div class="chips" id="chips"></div>
 
 <div class="lanes">
-  <div class="lane" id="lane-before"><div class="hd"><b>학습 전 · 원본 모델</b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp">정답 <b>—</b> · 모델 답 <span class="mono">—</span></div><div><span class="pill idle">대기</span></div><div class="to">수취 주소 —</div><div class="note">실행하면 이 모델의 답으로 라우팅된 지급을 Privy 지갑에서 실제로 시도합니다.</div></div>
-  <div class="lane" id="lane-after"><div class="hd"><b>학습 후 · 종목코드를 학습한 모델</b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp">정답 <b>—</b> · 모델 답 <span class="mono">—</span></div><div><span class="pill idle">대기</span></div><div class="to">수취 주소 —</div><div class="note">두 레인은 같은 지갑·같은 정책·같은 코드 경로를 지나며, 판정(DENY/EXEC)은 Privy 응답에서만 파생됩니다.</div></div>
+  <div class="lane" id="lane-before"><div class="hd"><b>Before training · base model</b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">IDLE</span></div><div class="to">recipient —</div><div class="note">Run to attempt a real payment from the Privy wallet, routed by this model's answer.</div></div>
+  <div class="lane" id="lane-after"><div class="hd"><b>After training · model that learned the tickers</b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">IDLE</span></div><div class="to">recipient —</div><div class="note">Both lanes go through the same wallet, the same policy and the same code path. The verdict (DENY / EXEC) is derived only from Privy's response.</div></div>
 </div>
 
-<h2>원장 — 이 지갑이 시도한 모든 지급</h2>
-<table class="ledger"><thead><tr><th>시각</th><th>회사</th><th>모델</th><th class="mono">코드</th><th class="mono">금액</th><th>판정</th><th>사유 (Privy 원문)</th><th>tx</th></tr></thead><tbody id="ledger"></tbody></table>
+<h2>Ledger — every payment this wallet attempted</h2>
+<table class="ledger"><thead><tr><th>time</th><th>company</th><th>model</th><th class="mono">code</th><th class="mono">amount</th><th>verdict</th><th>reason (Privy, verbatim)</th><th>tx</th></tr></thead><tbody id="ledger"></tbody></table>
 
-<h2>어떻게 동작하나</h2>
+<h2>How it works</h2>
 <div class="how"><ol>
-<li>지시문에서 회사명을 찾고, 선택한 모델에 <span class="mono">"{회사명} 종목코드 알려줘. 숫자만."</span>을 묻습니다 (벤치마크와 같은 프롬프트·같은 파서).</li>
-<li>답의 첫 6자리 코드로 수취 주소를 정합니다. <span class="mono">address = 0x + keccak256("ticker:" + code)[12:]</span>. 레지스트리에 없는 코드도 같은 규칙으로 주소를 만듭니다. <b>우리 코드는 여기서 막지 않습니다.</b></li>
-<li>Privy 서버 지갑으로 <span class="mono">eth_sendTransaction</span>을 보냅니다. 정책은 <span class="mono">to ∈ 검증 주소 16개 AND value ≤ 0.00001 ETH</span>만 ALLOW, 그 외 전부 DENY이며 TEE 안에서 평가됩니다.</li>
-<li>Privy가 hash를 돌려주면 <b>EXEC</b>, <span class="mono">code: policy_violation</span>이면 <b>DENY</b>. 판정은 응답에서만 파생됩니다.</li>
+<li>Find the company name in the instruction and ask the selected model <span class="mono">"{company} 종목코드 알려줘. 숫자만."</span> ("tell me the ticker of {company}, digits only") — the same prompt and the same parser as the benchmark.</li>
+<li>Take the first 6-character code in the answer and derive the recipient: <span class="mono">address = 0x + keccak256("ticker:" + code)[12:]</span>. A code that is not in the registry gets an address by the same rule. <b>Our code does not block anything here.</b></li>
+<li>Send <span class="mono">eth_sendTransaction</span> from the Privy server wallet. The policy ALLOWs only <span class="mono">to ∈ 16 verified addresses AND value ≤ 0.00001 ETH</span>; everything else is denied by default, evaluated inside the TEE.</li>
+<li>If Privy returns a hash the verdict is <b>EXEC</b>; if it returns <span class="mono">code: policy_violation</span> the verdict is <b>DENY</b>. Nothing else decides.</li>
 </ol></div>
 
-<h2>검증된 티커 레지스트리 — 16개, 모두 학습 전에 틀렸던 종목</h2>
+<h2>Verified ticker registry — 16 tickers, all wrong before training</h2>
 <div class="reg" id="reg"></div>
 
-<h2>증거</h2>
+<h2>Evidence</h2>
 <div class="shots">
-  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png<br>Sepolia 트랜잭션 상세 — from 이 에이전트 지갑</div><figcaption>체결된 지급 (학습 후 모델)</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png<br>Privy 대시보드 정책 화면</div><figcaption>정책: to in [검증 주소], value lte 상한</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png<br>policy_violation 원문</div><figcaption>거부된 지급 (학습 전 모델)</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png<br>Sepolia transaction — From is the agent wallet</div><figcaption>Settled payment (model after training)</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png<br>Privy dashboard, policy view</div><figcaption>Policy: to in [verified addresses], value lte cap</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png<br>policy_violation, verbatim</div><figcaption>Denied payment (base model) — rendered from real CLI output</figcaption></figure>
 </div>
 </main>
 <script>
 const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'—';const eth=w=>(Number(w)/1e18).toLocaleString(undefined,{maximumFractionDigits:8})+' ETH';
-let ST=null;
-/* ───── 후크 1: 레인 렌더 ───── */
+let ST=null,REG=[];
+/* ───── hook 1: lane ───── */
 function render({side,code,state,note,raw,expected,answer,to,verified,hash,explorer,latency}){
   const L=$('#lane-'+side);const st=state||'idle';
-  L.querySelector('.code').className='code '+st;L.querySelector('.code').textContent=code||(st==='error'?'——————':'——————');
-  L.querySelector('.exp').innerHTML=`정답 <b>${esc(expected||'—')}</b> · 모델 답 <span class="mono">${esc(answer??'—')}</span>${latency?` · <span class="mono">${latency} ms</span>`:''}`;
-  const label={deny:'DENY · 서명 거부',exec:'EXEC · 체결',error:'ERROR',idle:'대기'}[st];
+  L.querySelector('.code').className='code '+st;L.querySelector('.code').textContent=code||'——————';
+  L.querySelector('.exp').innerHTML=`expected <b>${esc(expected||'—')}</b> · model answer <span class="mono">${esc(answer??'—')}</span>${latency?` · <span class="mono">${latency} ms</span>`:''}`;
+  const label={deny:'DENY · signature refused',exec:'EXEC · settled',error:'ERROR',idle:'IDLE'}[st];
   L.querySelector('.pill').outerHTML=`<span class="pill ${st}">${label}</span>`;
-  L.querySelector('.to').innerHTML=to?`수취 주소 <b class="mono">${esc(to)}</b> · ${verified?'검증된 수취인 (레지스트리 안)':'<span style="color:var(--deny)">미검증 — 레지스트리에 없는 코드에서 파생</span>'}${hash?` · <a class="mono" style="color:var(--ink)" target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:''}`:'수취 주소 —';
-  L.querySelector('.note').innerHTML=esc(note||'')+(raw?`<details><summary>요청·응답 원문</summary><pre class="raw">${esc(JSON.stringify(raw,null,1))}</pre></details>`:'');
+  L.querySelector('.to').innerHTML=to?`recipient <b class="mono">${esc(to)}</b> · ${verified?'verified recipient (in registry)':'<span style="color:var(--deny)">unverified — derived from a code that is not in the registry</span>'}${hash?` · <a class="mono" style="color:var(--ink)" target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:''}`:'recipient —';
+  L.querySelector('.note').innerHTML=esc(note||'')+(raw?`<details><summary>request · response, verbatim</summary><pre class="raw">${esc(JSON.stringify(raw,null,1))}</pre></details>`:'');
 }
-/* ───── 후크 2: 원장 행 ───── */
+/* ───── hook 2: ledger row ───── */
 function appendRow({time,name,model,code,amount,state,reason,hash,explorer}){
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?'학습 전':'학습 후'}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td class="mono st-${state}">${state.toUpperCase()}</td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
+  tr.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?'before':'after'}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td class="mono st-${state}">${state.toUpperCase()}</td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
   $('#ledger').prepend(tr);
 }
-/* ───── 배선 ───── */
+/* ───── wiring ───── */
 function noteFor(r){
-  if(r.verdict==='deny')return `${r.company}의 코드를 ${r.code}로 답했습니다${r.correct?'':` (정답 ${r.expected_code})`}. 그 코드에서 파생된 주소는 검증 목록에 없어 Privy 정책 엔진이 서명을 거부했습니다. 체인에 아무것도 나가지 않았습니다.`;
-  if(r.verdict==='exec')return `${r.company}의 코드 ${r.code}${r.correct?' (정답)':' (오답이지만 레지스트리의 다른 회사 코드)'} → 검증된 수취인. Privy가 서명·전송했고 Sepolia에 체결됐습니다.`;
-  return (r.privy_raw&&r.privy_raw.error)||'오류';
+  if(r.verdict==='deny')return `The model answered ${r.code} for ${r.company}${r.correct?'':` (expected ${r.expected_code})`}. The address derived from that code is not in the verified list, so Privy's policy engine refused to sign. Nothing reached the chain.`;
+  if(r.verdict==='exec')return `${r.company} → ${r.code}${r.correct?' (correct)':' (wrong, but the code of another registered company)'} → verified recipient. Privy signed and broadcast; settled on Sepolia.`;
+  return (r.privy_raw&&r.privy_raw.error)||'error';
 }
-function rowFor(r){return {time:new Date((r.t||Date.now()/1000)*1000).toLocaleTimeString('ko-KR',{hour12:false}),name:r.company,model:r.model,code:r.code,amount:r.amount_wei,state:r.verdict,reason:r.privy_raw?(r.privy_raw.code||r.privy_raw.error||''):'',hash:r.tx_hash,explorer:r.explorer};}
-let REG=[];
+function rowFor(r){return {time:new Date((r.t||Date.now()/1000)*1000).toLocaleTimeString('en-GB',{hour12:false}),name:r.company,model:r.model,code:r.code,amount:r.amount_wei,state:r.verdict,reason:r.privy_raw?(r.privy_raw.code||r.privy_raw.error||''):'',hash:r.tx_hash,explorer:r.explorer};}
 async function settle(model,instruction,batch){const res=await fetch(batch?'/settle/batch':'/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,model})});const r=await res.json();if(!res.ok)throw new Error(r.error||res.status);return r;}
-/* 한 지시에 회사가 여럿이면 일괄 지급(/settle/batch): 한 건이 환각이면 그 건만 거부되고 나머지는 정산된다 — 부분 실패 격리 */
+/* Several companies in one instruction → batch settlement: a hallucinated leg is denied on its own, the others settle (partial-failure isolation). */
 function renderBatch(model,b){const legs=b.legs||[];const sm=b.summary||{};const st=sm.deny>0?'deny':(sm.exec>0?'exec':'error');
   render({side:model,code:`${sm.exec||0}/${legs.length}`,state:st,expected:legs.map(l=>l.expected_code).join(' '),answer:legs.map(l=>l.model_answer).join(' / '),
-    note:`${legs.length}건 일괄: 체결 ${sm.exec||0} · 거부 ${sm.deny||0} · 오류 ${sm.error||0}. `+legs.map(l=>`${l.company} ${l.code||'—'} → ${l.verdict.toUpperCase()}`).join(' · ')+(sm.deny>0?' — 환각한 건만 서명이 거부되고 나머지는 정산됐습니다.':''),
+    note:`Batch of ${legs.length}: settled ${sm.exec||0} · denied ${sm.deny||0} · error ${sm.error||0}. `+legs.map(l=>`${l.company} ${l.code||'—'} → ${l.verdict.toUpperCase()}`).join(' · ')+(sm.deny>0?' — only the hallucinated legs were refused; the rest settled.':''),
     raw:legs.map(l=>({company:l.company,code:l.code,verdict:l.verdict,request:l.privy_request||null,response:l.privy_raw,tx_hash:l.tx_hash})),
     to:legs.map(l=>short(l.to)).join(' · '),verified:legs.every(l=>l.verified_recipient)});
-  const el=$('#lane-'+model+' .code');el.style.fontSize='40px';el.title='체결 / 전체';for(const l of legs)if(l.company)appendRow(rowFor(l));}
+  const el=$('#lane-'+model+' .code');el.style.fontSize='40px';el.title='settled / total';for(const l of legs)if(l.company)appendRow(rowFor(l));}
 async function run(){const instruction=$('#instr').value.trim();if(!instruction)return;$('#run').disabled=true;
   const batch=REG.filter(r=>instruction.includes(r.name)).length>1;
-  for(const s of['before','after']){render({side:s,code:null,state:'idle',note:'실행 중… 모델 질의 → Privy 서명 요청 → 응답',expected:'—',answer:'…'});$('#lane-'+s+' .code').style.fontSize='';}
+  for(const s of['before','after']){render({side:s,code:null,state:'idle',note:'Running… model query → Privy signing request → response',expected:'—',answer:'…'});$('#lane-'+s+' .code').style.fontSize='';}
   const results=await Promise.all(['before','after'].map(async model=>{try{return await settle(model,instruction,batch);}catch(e){return {model,verdict:'error',privy_raw:{error:String(e)},company:'',code:null,amount_wei:null};}}));
   for(const r of results){if(batch&&r.legs){renderBatch(r.model,r);continue;}
     render({side:r.model,code:r.code,state:r.verdict,note:noteFor(r),raw:{request:r.privy_request||null,response:r.privy_raw,model_answer:r.model_answer,prompt:r.prompt},expected:r.expected_code,answer:r.model_answer,to:r.to,verified:r.verified_recipient,hash:r.tx_hash,explorer:r.explorer,latency:r.latency_ms});
@@ -138,12 +132,12 @@ async function run(){const instruction=$('#instr').value.trim();if(!instruction)
   $('#run').disabled=false;loadStatus();}
 $('#run').onclick=run;$('#instr').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
 async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
-  $('#rail').innerHTML=[`<span class="${ST.mode==='privy'?'live':'mock'}">${ST.mode==='privy'?'LIVE':'MOCK'}</span>`,`에이전트 지갑 <b class="mono" title="${ST.wallet_address}">${ST.wallet_address}</b>`,`정책 <b class="mono">${ST.policy_id}</b>`,`잔액 <b class="mono">${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b>`,`체인 <b class="mono">${ST.caip2}</b>`,`건당 상한 <b class="mono">${eth(ST.amount_wei)}</b>`,`검증 수취인 <b class="mono">${ST.registry_size}</b>`].map(s=>`<span>${s}</span>`).join('');
+  $('#rail').innerHTML=[`<span class="${ST.mode==='privy'?'live':'mock'}">${ST.mode==='privy'?'LIVE':'MOCK'}</span>`,`agent wallet <b class="mono" title="${ST.wallet_address}">${ST.wallet_address}</b>`,`policy <b class="mono">${ST.policy_id}</b>`,`balance <b class="mono">${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b>`,`chain <b class="mono">${ST.caip2}</b>`,`per-settlement cap <b class="mono">${eth(ST.amount_wei)}</b>`,`verified recipients <b class="mono">${ST.registry_size}</b>`].map(s=>`<span>${s}</span>`).join('');
   if(!$('#ledger').children.length)for(const r of (ST.ledger||[]))if(r.company)appendRow(rowFor(r));}
 async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;
-  $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="학습 전 모델의 생성">전: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
-  const chips=$('#chips');['태양기계','엑시온그룹','성원에너텍','닷밀','KR모터스','픽셀플러스'].filter(n=>registry.some(r=>r.name===n)).forEach(n=>{const b=document.createElement('button');b.textContent=n+'에 대금 지급';b.onclick=()=>{$('#instr').value=n+'에 대금 지급';run();};chips.appendChild(b);});
-  const multi=document.createElement('button');multi.textContent='태양기계, 픽셀플러스, 닷밀에 대금 지급 (3건)';multi.onclick=()=>{$('#instr').value='태양기계, 픽셀플러스, 닷밀에 대금 지급';run();};chips.appendChild(multi);}
+  $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="what the base model generated">base: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
+  const chips=$('#chips');['태양기계','엑시온그룹','성원에너텍','닷밀','KR모터스','픽셀플러스'].filter(n=>registry.some(r=>r.name===n)).forEach(n=>{const b=document.createElement('button');b.textContent='pay '+n;b.onclick=()=>{$('#instr').value=n+'에 대금 지급';run();};chips.appendChild(b);});
+  const multi=document.createElement('button');multi.textContent='pay 태양기계, 픽셀플러스, 닷밀 (batch of 3)';multi.onclick=()=>{$('#instr').value='태양기계, 픽셀플러스, 닷밀에 대금 지급';run();};chips.appendChild(multi);}
 document.querySelectorAll('.shot-empty').forEach(d=>{const img=new Image();img.onload=()=>{d.replaceWith(img);};img.src=d.dataset.img;});
 loadStatus();loadRegistry();setInterval(loadStatus,20000);
 </script></body></html>

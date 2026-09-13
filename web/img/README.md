@@ -1,11 +1,12 @@
-# web/img/ — 증거 스크린샷 (SPEC P0-5)
+# web/img/ — evidence screenshots (SPEC P0-5)
 
-세 파일이 이 폴더(web/img/, 페이지가 서빙되는 web/ 아래)에 들어오면 `web/privy.html` 의 §증거 자리가 자동으로 `<img>` 로 바뀐다.
+When these files exist in this folder (`web/img/`, under the `web/` directory the page is served from), the
+Evidence section of `web/privy.html` replaces its placeholders with `<img>` automatically.
 
-| 파일 | 무엇을 찍나 | 어디서 |
+| file | what to capture | where |
 |---|---|---|
-| `etherscan-tx.png` | Sepolia 트랜잭션 상세. **From 이 에이전트 지갑 `0x7c704148b6B69F87694aa8f7A0691635D5426D59` 인 것이 보이게** | https://sepolia.etherscan.io/tx/0x8811fe45dae8b5ee246ce4ea47cc641824e01fa59cd2147cddbf92d12c10dfab |
-| `privy-policy.png` | Privy 대시보드의 정책 화면 (Verified identifier settlement, `to in […16]`, `value lte 10000000000000`) | dashboard.privy.io → Ainize → Policies → `sh2rb434k1bjfd00xmigksxw` |
-| `deny-response.png` | `policy_violation` 원문 터미널 캡처 | `python3 web/privy_pay.py settle "태양기계에 대금 지급" --model before` |
+| `etherscan-tx.png` | Sepolia transaction detail. **From must visibly be the agent wallet `0x7c704148b6B69F87694aa8f7A0691635D5426D59`** | https://sepolia.etherscan.io/tx/0x8811fe45dae8b5ee246ce4ea47cc641824e01fa59cd2147cddbf92d12c10dfab |
+| `privy-policy.png` | Privy dashboard, policy view ("Verified identifier settlement", `to in […16]`, `value lte 10000000000000`) | dashboard.privy.io → Ainize → Policies → `sh2rb434k1bjfd00xmigksxw` |
+| `deny-response.png` | `policy_violation` verbatim | **present** — rendered from real CLI output of `python3 web/privy_pay.py settle "태양기계에 대금 지급" --model before` (the image says so; replace with a terminal screenshot if preferred) |
 
-TODO(사람이 채울 것): 세 파일 모두. 대시보드는 로그인이 필요해 자동으로 찍을 수 없다.
+TODO(human): `etherscan-tx.png` and `privy-policy.png`. The dashboard needs a login, so they cannot be captured automatically.
