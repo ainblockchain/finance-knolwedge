@@ -75,7 +75,7 @@ EXPLORER = {84532: "https://sepolia.basescan.org/tx/", 8453: "https://basescan.o
             11155111: "https://sepolia.etherscan.io/tx/", 296: "https://hashscan.io/testnet/transaction/"}
 MODEL = "Qwen3.8-Flash-Next"
 PROMPT = "{name} 종목코드 알려줘. 숫자만."   # results/chat-eval.json 의 q 와 같다 — 벤치마크와 같은 질문이어야 한다
-CODE_RE = re.compile(r"(?<![0-9A-Z])([0-9][0-9A-Z]{5})(?![0-9A-Z])")
+CODE_RE = re.compile(r"([0-9][0-9A-Z]{5})")  # scripts/chat_eval.py 와 같은 파서 — 첫 6자리 코드. 벤치마크와 같은 눈으로 읽어야 한다
 REGISTRY_PATH = os.path.join(ROOT, "registry.json")
 STATE_PATH = os.environ.get("PRIVY_STATE", os.path.join(ROOT, "privy_state.json"))
 if MODE == "mock":
@@ -351,7 +351,7 @@ def balance_wei(addr):
 
 
 # ───────────────────────────── 모델 ─────────────────────────────
-def ask_model(side, q, max_tokens=48):
+def ask_model(side, q, max_tokens=40):  # chat_eval.py 와 같은 max_tokens
     url = CFG["before_api" if side == "before" else "after_api"] + "/v1/chat/completions"
     payload = {"model": MODEL, "messages": [{"role": "user", "content": q}], "stream": False, "temperature": 0.0,
                "max_tokens": max_tokens, "chat_template_kwargs": {"enable_thinking": False}}
