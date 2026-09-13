@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>frame</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#F7F6FE}#w{width:440px;padding:10px;background:linear-gradient(180deg,#F7F6FE,#fff)}svg{display:block;width:440px;height:380px}</style>
+<div id="w"></div>
+<script>fetch('privy-flow.svg').then(r=>r.text()).then(t=>{document.getElementById('w').innerHTML=t;const svg=document.querySelector('svg');const q=new URLSearchParams(location.search);svg.pauseAnimations();svg.setCurrentTime(parseFloat(q.get('t')||'0'));document.title='ready';});</script>

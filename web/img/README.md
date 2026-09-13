@@ -12,3 +12,11 @@ Evidence section of `web/privy.html` automatically.
 
 The settled transaction quoted in `SUBMISSION.md` (`0x8811fe45…`, the single-settlement run) is a different transaction
 from the same wallet; both are on Sepolia under the same policy.
+
+## Diagrams
+
+| file | what |
+|---|---|
+| `privy-flow.svg` | Animated flow (SMIL, 6 s loop): instruction → two models → ticker → derived recipient → Privy policy engine → Denied / Settled. Also inlined in `web/privy.html` beside the hero text; a static wide version sits under the headline |
+| `privy-flow.gif` | The same animation as a GIF (690×600, 36 frames) for README and the submission form |
+| `privy-flow-frame.html` | Frame renderer: `?t=<seconds>` pauses the SMIL clock so headless Chromium can capture deterministic frames for the GIF |

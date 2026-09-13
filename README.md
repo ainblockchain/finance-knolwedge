@@ -226,6 +226,8 @@ PLE 테이블은 기동 시 호스트 RAM으로 오프로드되므로, 디스크
 
 ## Privy — settlement routed by verified identifiers (ETHOnline 2026 submission)
 
+![One instruction, two models, one Privy policy: the hallucinated ticker is denied, the correct one settles](web/img/privy-flow.gif)
+
 Tab **Privy** (`web/privy.html`). The stock ticker is the payment routing key: company name → 6-digit code → recipient
 address derived from the code (`0x + keccak256("ticker:" + code)[12:]`). The agent's treasury is a Privy server wallet,
 and Privy's policy engine **refuses to sign** unless the recipient is the address of a verified ticker. Run the same
