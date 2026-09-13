@@ -13,7 +13,7 @@ nav{background:#171a21;border-color:#262b36}nav .brand{color:#5aa9ff}nav a{color
 .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:13px}
 main.privy{max-width:1120px;margin:0 auto;padding:0 24px 72px}
 /* KPI strip — dashboard tiles */
-.rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:22px 0 0}
+.rail{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:22px 0 0}@media(max-width:1000px){.rail{grid-template-columns:repeat(4,1fr)}}@media(max-width:640px){.rail{grid-template-columns:repeat(2,1fr)}}
 .rail span{display:block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);overflow:hidden}
 .rail span b{display:block;margin-top:5px;font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rail .live,.rail .mock{border-color:transparent}.rail .live{background:var(--exec-soft);color:var(--exec)}.rail .mock{background:var(--warn-soft);color:var(--warn)}
@@ -87,10 +87,10 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 <p>The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.</p>
 <p class="sub">The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy's Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.</p>
 <div class="nums">
-  <div><div class="n"><span class="from">19.0%</span> → 100.0%</div><div class="l"><a href="bench.html">template accuracy, 2,761 tickers · benchmark</a></div></div>
+  <div><div class="n">100.0%</div><div class="l"><a href="bench.html">template accuracy, 2,761 tickers · was 19.0%</a></div></div>
   <div><div class="n">2,237</div><div class="l"><a href="bench.html">tickers moved from wrong to right</a></div></div>
   <div><div class="n">0.084%</div><div class="l"><a href="method.html">parameters changed · backbone untouched</a></div></div>
-  <div><div class="n"><span class="from">13%</span> → 97%</div><div class="l"><a href="bench.html">chat-format accuracy, 60 samples</a></div></div>
+  <div><div class="n">97%</div><div class="l"><a href="bench.html">chat-format accuracy, 60 samples · was 13%</a></div></div>
 </div>
 </section>
 
@@ -170,7 +170,7 @@ async function run(){const instruction=$('#instr').value.trim();if(!instruction)
 $('#run').onclick=run;$('#instr').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
 async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
   const live=ST.mode==='privy';
-  $('#rail').innerHTML=[`<span class="${live?'live':'mock'}">mode<b>${live?'Live · Privy TEE wallet':'Mock · not connected'}</b></span>`,`<span>agent wallet<b title="${ST.wallet_address}">${ST.wallet_address}</b></span>`,`<span>policy<b>${ST.policy_id}</b></span>`,`<span>balance<b>${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b></span>`,`<span>chain<b>${ST.caip2}</b></span>`,`<span>per-settlement cap<b>${eth(ST.amount_wei)}</b></span>`,`<span>verified recipients<b>${ST.registry_size}</b></span>`].join('');
+  $('#rail').innerHTML=[`<span class="${live?'live':'mock'}">mode<b>${live?'Live · Privy TEE wallet':'Mock · not connected'}</b></span>`,`<span>agent wallet<b title="${ST.wallet_address}">${short(ST.wallet_address)}</b></span>`,`<span>policy<b title="${ST.policy_id}">${(ST.policy_id||"").slice(0,8)}…${(ST.policy_id||"").slice(-4)}</b></span>`,`<span>balance<b>${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b></span>`,`<span>chain<b>${ST.caip2}</b></span>`,`<span>per-settlement cap<b>${eth(ST.amount_wei)}</b></span>`,`<span>verified recipients<b>${ST.registry_size}</b></span>`].join('');
   if(!$('#ledger').children.length)for(const r of (ST.ledger||[]))if(r.company)appendRow(rowFor(r));}
 async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;
   $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="what the base model generated">base: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
