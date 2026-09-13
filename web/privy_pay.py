@@ -1,44 +1,40 @@
-"""Privy 서버 지갑 + 정책 엔진으로 "사실을 사는 에이전트" 결제 루프 (표준 라이브러리만).
+"""이름으로 라우팅되는 지급 — 종목코드가 결제 라우팅 키이고, Privy 정책 엔진이 검증되지 않은 수취인에게는 서명을 거부한다.
 
-  에이전트 ── GET /api/fact?q=… ─────────────────────────────► 402 {price_wei, payTo, chainId, nonce}
-  에이전트 ── POST api.privy.io/v1/wallets/{id}/rpc eth_sendTransaction ─► tx hash   (정책이 ALLOW 한 경우만)
-  에이전트 ── GET /api/fact?q=…  X-Payment-Receipt: <hash> ──► 체인에서 검증 후 학습된 모델의 종목코드 답
+  POST /settle {instruction: "태양기계에 대금 지급", model: "before"|"after"}
+    1. 지시문에서 회사명을 찾고, 해당 모델(:8000 학습 전 / :8001 학습 후)에 "{회사명} 종목코드 알려줘. 숫자만." 을 묻는다
+    2. 답에서 6자리 코드를 뽑는다
+    3. 레지스트리(web/registry.json)에서 그 코드의 수취 주소를 찾는다. 없으면 같은 규칙으로 주소를 파생한다
+       (address = 0x + keccak256("ticker:" + code)[12:]) — 미검증 주소라도 **여기서 막지 않는다**
+    4. Privy 서버 지갑으로 eth_sendTransaction 을 보낸다. 정책(to ∈ 검증 주소 목록, value ≤ 상한, 그 외 DENY)은 TEE 안에서 평가된다
+    5. verdict 는 Privy 응답에서만 파생한다: hash 가 오면 exec, code == policy_violation 이면 deny, 그 외 error
 
-왜 Privy 인가: 이 데모의 원본 모델은 종목코드의 82% 를 환각한다. 그런 모델 위에 세운 에이전트는 예산도
-환각한다. Privy 정책(to == FACT_PROVIDER_ADDRESS, value <= FACT_PRICE_WEI, 그 외 전부 DENY)은 TEE 안에서
-강제되므로, 에이전트 프로세스가 오작동하거나 프롬프트 인젝션을 당해도 트레저리를 털 수 없다. 이 파일은
-그 정책이 실제로 거부하는 장면과 정상 결제가 통과하는 장면을 둘 다 만들어 보이는 데 필요한 것만 담는다.
+에이전틱 금융의 실제 사고는 "너무 많이 씀" 이 아니라 "식별자를 환각해 엉뚱한 상대에게 보냄" 이다. 원본 모델은 태양기계에
+033240 처럼 형식은 완벽하고 값만 틀린 코드를 답한다. 방어는 두 겹이고 서로 독립이다: 지식 교정(19%→100%) 은 우리 연구가,
+권한 강제(검증된 주소가 아니면 서명 거부) 는 Privy 가 한다. 같은 지갑·같은 정책·같은 코드에서 모델만 바꾸면 결과가 갈린다.
 
-설정: 환경변수, 또는 아래 순서로 처음 발견되는 파일 (KEY=VALUE 한 줄씩).
-  1) $PRIVY_ENV_FILE           2) web/privy.env (이 파일 옆, gitignore)
-  3) ~/.privy/finance-demo.env  ← 기본. 체크아웃·워크트리와 무관하게 한 곳에 두면 어떤 배포에서도 같은 값을 읽는다.
-  PRIVY_APP_ID, PRIVY_APP_SECRET        dashboard.privy.io → App settings → Basics / API keys
-  PRIVY_WALLET_ID, PRIVY_WALLET_ADDRESS `python3 web/privy_pay.py setup` 이 만들어 준다
-  PRIVY_POLICY_ID                       `setup` 이 만들어 준다
-  FACT_PROVIDER_ADDRESS                 사실 공급자(수취인) 주소 — 정책의 to. 이 주소만 받을 수 있다
-  FACT_PRICE_WEI                        건당 가격. 기본 10000000000000 (= 0.00001 ETH)
-  CHAIN_CAIP2                           기본 eip155:84532 (Base Sepolia). Hedera 테스트넷은 eip155:296
-  RPC_URL                               체인 JSON-RPC. 기본 https://sepolia.base.org
-PRIVY_APP_ID 가 없으면 **mock 모드**: 정책 판정을 이 프로세스가 흉내 내고 화면·응답에 MOCK 이라고 적는다.
-mock 은 화면을 만들고 흐름을 점검하는 용도이며 제출 증거가 될 수 없다.
+설정 파일 (KEY=VALUE): $PRIVY_ENV_FILE → web/privy.env → ~/.privy/finance-demo.env (기본, 체크아웃과 무관)
+  PRIVY_APP_ID, PRIVY_APP_SECRET, PRIVY_WALLET_ID, PRIVY_WALLET_ADDRESS, PRIVY_POLICY_ID
+  SETTLE_AMOUNT_WEI (기본 10000000000000 = 0.00001 ETH; 정책 상한과 같다)   CHAIN_CAIP2 (eip155:11155111)   RPC_URL
+PRIVY_APP_ID 가 없으면 mock 모드 — 정책 판정을 이 프로세스가 흉내 내고 응답에 MOCK 이라 적는다. 제출 증거가 될 수 없다.
 
 CLI:
-  python3 web/privy_pay.py setup --provider 0x…  [--write]   정책 → 지갑 순서로 만들고 env 줄을 출력
-  python3 web/privy_pay.py spike --caip2 eip155:296          Privy 지갑이 그 체인으로 tx 를 내보내는지 확인
+  python3 web/privy_pay.py registry [--n 16]      results/chat-eval.json 에서 학습 전 오답·학습 후 정답 종목으로 web/registry.json 생성
+  python3 web/privy_pay.py policy                 레지스트리 주소 전체를 allowlist 로 하는 정책을 만들어(또는 갱신해) 지갑에 붙인다
+  python3 web/privy_pay.py settle "태양기계에 대금 지급" --model before|after
+  python3 web/privy_pay.py try --method personal_sign     정책이 허용하지 않은 메서드 → 가스 없이 policy_violation
   python3 web/privy_pay.py status
-  python3 web/privy_pay.py agent "픽셀플러스 종목코드 알려줘. 숫자만."
-  python3 web/privy_pay.py try --to 0x… --value-wei 1000000000000000
 """
-import argparse, base64, hashlib, json, os, re, secrets, sys, threading, time, urllib.error, urllib.parse, urllib.request
+import argparse, base64, hashlib, json, os, re, sys, threading, time, urllib.error, urllib.parse, urllib.request
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(ROOT)
 PRIVY_API = "https://api.privy.io"
+UA = "finance-demo-agent/1.0 (+https://finance-demo.ainetwork.ai)"  # Cloudflare 와 공개 RPC 가 urllib 기본 UA 를 403 으로 막는다
 
-
+# ───────────────────────────── 설정 ─────────────────────────────
 CANONICAL_ENV = os.path.expanduser("~/.privy/finance-demo.env")
 ENV_CANDIDATES = [os.environ.get("PRIVY_ENV_FILE", ""), os.path.join(ROOT, "privy.env"), CANONICAL_ENV]
-ENV_FILE = None  # 실제로 읽은 파일. status 와 시작 로그에 나오므로 "어느 env 를 읽었나" 를 추측하지 않아도 된다.
+ENV_FILE = None
 
 
 def _load_env_file():
@@ -63,71 +59,167 @@ _load_env_file()
 
 CFG = {
     "app_id": os.environ.get("PRIVY_APP_ID", ""),
-    "app_secret": os.environ.get("PRIVY_APP_SECRET", "") or os.environ.get("PRIVY_API_KEY", ""),
+    "app_secret": os.environ.get("PRIVY_APP_SECRET", ""),
     "wallet_id": os.environ.get("PRIVY_WALLET_ID", ""),
     "wallet_address": os.environ.get("PRIVY_WALLET_ADDRESS", "").lower(),
     "policy_id": os.environ.get("PRIVY_POLICY_ID", ""),
-    "provider": os.environ.get("FACT_PROVIDER_ADDRESS", "").lower(),
-    "price_wei": int(os.environ.get("FACT_PRICE_WEI", "10000000000000")),
-    "caip2": os.environ.get("CHAIN_CAIP2", "eip155:84532"),
-    "rpc_url": os.environ.get("RPC_URL", "https://sepolia.base.org"),
+    "amount_wei": int(os.environ.get("SETTLE_AMOUNT_WEI", os.environ.get("FACT_PRICE_WEI", "10000000000000"))),
+    "caip2": os.environ.get("CHAIN_CAIP2", "eip155:11155111"),
+    "rpc_url": os.environ.get("RPC_URL", "https://ethereum-sepolia-rpc.publicnode.com"),
     "before_api": os.environ.get("BEFORE_API", "http://localhost:8000"),
     "after_api": os.environ.get("AFTER_API", "http://localhost:8001"),
 }
 MODE = "privy" if CFG["app_id"] and CFG["app_secret"] else "mock"
-print(f"privy: mode={MODE} env={ENV_FILE or '(없음)'}" + ("" if MODE == "privy" else
-      f"  ← MOCK. PRIVY_APP_ID/PRIVY_APP_SECRET 을 {CANONICAL_ENV} 에 넣으면 LIVE"), file=sys.stderr, flush=True)
 CHAIN_ID = int(CFG["caip2"].split(":")[1])
 EXPLORER = {84532: "https://sepolia.basescan.org/tx/", 8453: "https://basescan.org/tx/",
             11155111: "https://sepolia.etherscan.io/tx/", 296: "https://hashscan.io/testnet/transaction/"}
 MODEL = "Qwen3.8-Flash-Next"
-NONCE_TTL = 600  # 초. 402 로 내준 nonce 가 유효한 시간
+PROMPT = "{name} 종목코드 알려줘. 숫자만."   # results/chat-eval.json 의 q 와 같다 — 벤치마크와 같은 질문이어야 한다
 CODE_RE = re.compile(r"(?<![0-9A-Z])([0-9][0-9A-Z]{5})(?![0-9A-Z])")
-# mock 모드에서만 쓰는 가짜 주소. 실제 체인 어디에도 없는 값이라는 것이 눈에 보이게 한다.
-MOCK_PROVIDER = "0x00000000000000000000000000000000000fac70"
-MOCK_WALLET = "0x000000000000000000000000000000000a9e4700"
-if MODE == "mock":
-    CFG["provider"] = CFG["provider"] or MOCK_PROVIDER
-    CFG["wallet_address"] = CFG["wallet_address"] or MOCK_WALLET
-    CFG["wallet_id"] = CFG["wallet_id"] or "mock-wallet"
-    CFG["policy_id"] = CFG["policy_id"] or "mock-policy"
-
-LOOKUP = None  # server.py 가 자신의 lookup(text) 을 꽂아 준다. 없으면 krx.json 을 직접 읽는다.
-
-
-def lookup(text):
-    global LOOKUP
-    if LOOKUP is None:
-        try:
-            krx = json.load(open(os.path.join(REPO, "data", "krx.json"), encoding="utf-8"))
-        except FileNotFoundError:
-            krx = []
-        by_code = {r["종목코드"]: r for r in krx}
-        names = sorted({r["회사명"]: r for r in krx}.values(), key=lambda r: -len(r["회사명"]))
-
-        def _lk(t):
-            hits, used = [], set()
-            for r in names:
-                n = r["회사명"]
-                if len(n) >= 2 and n in t and not any(n in u for u in used):
-                    hits.append({"name": n, "code": r["종목코드"], "market": r.get("시장구분", "")}); used.add(n)
-            for c in CODE_RE.findall(t):
-                if c in by_code and c not in {h["code"] for h in hits}:
-                    r = by_code[c]; hits.append({"name": r["회사명"], "code": c, "market": r.get("시장구분", "")})
-            return hits
-        LOOKUP = _lk
-    return LOOKUP(text)
-
-
-# ───────────────────────────── 상태 (nonce · 영수증 · 이벤트) ─────────────────────────────
+REGISTRY_PATH = os.path.join(ROOT, "registry.json")
 STATE_PATH = os.environ.get("PRIVY_STATE", os.path.join(ROOT, "privy_state.json"))
+if MODE == "mock":
+    CFG["wallet_id"] = CFG["wallet_id"] or "mock-wallet"
+    CFG["wallet_address"] = CFG["wallet_address"] or "0x000000000000000000000000000000000a9e4700"
+    CFG["policy_id"] = CFG["policy_id"] or "mock-policy"
+print(f"privy: mode={MODE} env={ENV_FILE or '(없음)'} chain={CFG['caip2']}" +
+      ("" if MODE == "privy" else f"  ← MOCK. PRIVY_APP_ID/PRIVY_APP_SECRET 을 {CANONICAL_ENV} 에 넣으면 LIVE"), file=sys.stderr, flush=True)
+
+
+# ───────────────────────────── keccak256 (표준 라이브러리에 없어 직접 구현) ─────────────────────────────
+_M64 = (1 << 64) - 1
+_RC = [0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000, 0x000000000000808B, 0x0000000080000001,
+       0x8000000080008081, 0x8000000000008009, 0x000000000000008A, 0x0000000000000088, 0x0000000080008009, 0x000000008000000A,
+       0x000000008000808B, 0x800000000000008B, 0x8000000000008089, 0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
+       0x000000000000800A, 0x800000008000000A, 0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008]
+_ROT = [[0, 36, 3, 41, 18], [1, 44, 10, 45, 2], [62, 6, 43, 15, 61], [28, 55, 25, 21, 56], [27, 20, 39, 8, 14]]
+
+
+def _rol(a, n):
+    return ((a << n) | (a >> (64 - n))) & _M64 if n else a
+
+
+def _keccak_f(A):
+    for rc in _RC:
+        C = [A[x][0] ^ A[x][1] ^ A[x][2] ^ A[x][3] ^ A[x][4] for x in range(5)]
+        D = [C[(x - 1) % 5] ^ _rol(C[(x + 1) % 5], 1) for x in range(5)]
+        A = [[A[x][y] ^ D[x] for y in range(5)] for x in range(5)]
+        B = [[0] * 5 for _ in range(5)]
+        for x in range(5):
+            for y in range(5):
+                B[y][(2 * x + 3 * y) % 5] = _rol(A[x][y], _ROT[x][y])
+        A = [[B[x][y] ^ ((~B[(x + 1) % 5][y]) & B[(x + 2) % 5][y]) for y in range(5)] for x in range(5)]
+        A[0][0] ^= rc
+    return A
+
+
+def keccak256(data: bytes) -> bytes:
+    """이더리움의 keccak256 (SHA3 표준화 전 패딩 0x01). 검증 벡터: keccak256(b"") = c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"""
+    rate = 136
+    msg = bytearray(data) + b"\x01"
+    while len(msg) % rate:
+        msg.append(0)
+    msg[-1] |= 0x80
+    A = [[0] * 5 for _ in range(5)]
+    for off in range(0, len(msg), rate):
+        for i in range(rate // 8):
+            A[i % 5][i // 5] ^= int.from_bytes(msg[off + 8 * i: off + 8 * i + 8], "little")
+        A = _keccak_f(A)
+    return b"".join(A[i % 5][i // 5].to_bytes(8, "little") for i in range(4))
+
+
+assert keccak256(b"").hex() == "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+assert keccak256(b"abc").hex() == "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"
+
+
+# ───────────────────────────── 레지스트리: 종목코드 → 수취 주소 ─────────────────────────────
+def derive_address(code: str) -> str:
+    """코드에서 결정론적으로 파생한 주소. 같은 코드 → 항상 같은 주소, 다른 코드 → 다른 주소.
+    실제 소유자는 없다 — 중요한 것은 코드가 곧 수취인이라는 점이고, 레지스트리에 없는 코드의 주소는 정책 밖이라 Privy 가 거부한다."""
+    return "0x" + keccak256(("ticker:" + code).encode()).hex()[24:]
+
+
+def _krx():
+    try:
+        return json.load(open(os.path.join(REPO, "data", "krx.json"), encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+
+
+def load_registry():
+    try:
+        return json.load(open(REGISTRY_PATH, encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+
+
+REGISTRY = load_registry()
+BY_CODE = {r["code"]: r for r in REGISTRY}
+BY_NAME = sorted(REGISTRY, key=lambda r: -len(r["name"]))  # 긴 이름 먼저 — "삼성전자우" 가 "삼성전자" 에 먹히지 않게
+
+
+def find_company(text):
+    """지시문에서 레지스트리의 회사명을 찾는다. 여러 개면 전부 (등장 순서)."""
+    hits = []
+    for r in BY_NAME:
+        i = text.find(r["name"])
+        if i >= 0 and not any(r["name"] in h["name"] for h in hits):
+            hits.append({**r, "pos": i})
+    return sorted(hits, key=lambda h: h["pos"])
+
+
+def resolve(name):
+    """회사명 → {code, address}. 완료 기준: resolve("태양기계") → 116100 → 0x…"""
+    for r in BY_NAME:
+        if r["name"] == name:
+            return r
+    return None
+
+
+def build_registry(n=16, extra=("태양기계", "엑시온그룹", "성원에너텍", "닷밀", "KR모터스", "픽셀플러스")):
+    """results/chat-eval.json 에서 학습 전 오답·학습 후 정답이었던 종목을 고른다 (전후 대비가 나와야 한다)."""
+    krx = {r["회사명"]: r for r in _krx()}
+    chosen, seen = [], set()
+
+    def add(name, before_gen=None):
+        r = krx.get(name)
+        if not r or r["종목코드"] in seen:
+            return
+        seen.add(r["종목코드"])
+        row = {"name": name, "code": r["종목코드"], "address": derive_address(r["종목코드"]), "market": r.get("시장구분", "")}
+        if before_gen is not None:
+            row["before_generation"] = before_gen
+        chosen.append(row)
+
+    ev = None
+    try:
+        ev = json.load(open(os.path.join(REPO, "results", "chat-eval.json"), encoding="utf-8"))
+    except FileNotFoundError:
+        pass
+    gens = {}
+    if ev:
+        for s, bg, bok, aok in zip(ev["sample"], ev["before"]["gens"], ev["before"]["ok"], ev["after"]["ok"]):
+            if not bok and aok:
+                gens[s["name"]] = (CODE_RE.search(bg or "") or [None, None])[1] if CODE_RE.search(bg or "") else (bg or "")[:12]
+    for name in extra:
+        add(name, gens.get(name))
+    if ev:
+        for s in ev["sample"]:
+            if len(chosen) >= n:
+                break
+            if s["name"] in gens:
+                add(s["name"], gens[s["name"]])
+    json.dump(chosen, open(REGISTRY_PATH, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return chosen
+
+
+# ───────────────────────────── 상태 (원장) ─────────────────────────────
 _lock = threading.Lock()
 try:
     _state = json.load(open(STATE_PATH, encoding="utf-8"))
 except Exception:
     _state = {}
-_state.setdefault("nonces", {}); _state.setdefault("receipts", []); _state.setdefault("events", [])
-_state.setdefault("denials", [])
+_state.setdefault("ledger", [])
 
 
 def _save():
@@ -136,30 +228,16 @@ def _save():
     os.replace(tmp, STATE_PATH)
 
 
-def event(kind, **kw):
-    e = {"t": time.time(), "kind": kind, "mode": MODE, **kw}
+def ledger_add(row):
     with _lock:
-        _state["events"].append(e); _state["events"] = _state["events"][-200:]; _save()
-    return e
-
-
-def issue_nonce(q):
-    n = secrets.token_hex(16)
-    with _lock:
-        now = time.time()
-        for k in [k for k, v in _state["nonces"].items() if now - v["issued"] > NONCE_TTL and not v.get("used")]:
-            del _state["nonces"][k]
-        _state["nonces"][n] = {"q": q, "issued": now, "used": None}; _save()
-    return n
+        _state["ledger"].append(row); _state["ledger"] = _state["ledger"][-300:]; _save()
 
 
 # ───────────────────────────── Privy REST ─────────────────────────────
 def privy(method, path, body=None):
-    """(http status, json). Basic 인증은 app_id:app_secret 이고 privy-app-id 헤더도 함께 보낸다."""
+    """(http status, json). Basic 인증은 app_id:app_secret, privy-app-id 헤더 동반."""
     hdr = {"Authorization": "Basic " + base64.b64encode(f"{CFG['app_id']}:{CFG['app_secret']}".encode()).decode(),
-           "privy-app-id": CFG["app_id"], "Content-Type": "application/json",
-           # Cloudflare 가 urllib 기본 UA 를 막는다 (403, error code 1010). 우리가 누구인지 밝힌다.
-           "User-Agent": "finance-demo-agent/1.0 (+https://finance-demo.ainetwork.ai)"}
+           "privy-app-id": CFG["app_id"], "Content-Type": "application/json", "User-Agent": UA}
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(PRIVY_API + path, data=data, headers=hdr, method=method)
     try:
@@ -175,90 +253,89 @@ def privy(method, path, body=None):
         return 0, {"error": f"{type(e).__name__}: {e}"}
 
 
-def policy_body(provider, price_wei):
-    """허용 룰 하나. Privy 정책은 명시적으로 허용하지 않은 것은 전부 거부한다."""
-    return {"version": "1.0", "name": "Fact-purchase budget guardrail", "chain_type": "ethereum",
-            "rules": [{"name": "Allow micropayments to fact provider only", "method": "eth_sendTransaction",
-                       "action": "ALLOW", "conditions": [
-                           {"field_source": "ethereum_transaction", "field": "to", "operator": "eq", "value": provider},
-                           {"field_source": "ethereum_transaction", "field": "value", "operator": "lte", "value": str(price_wei)}]}]}
+def policy_body(addresses, cap_wei):
+    """룰 하나: to ∈ 검증 주소 목록 AND value ≤ 상한 → ALLOW. Privy 는 명시적으로 허용하지 않은 것을 전부 거부하므로 룰을 더 넣지 않는다."""
+    return {"version": "1.0", "name": "Verified identifier settlement", "chain_type": "ethereum",
+            "rules": [{"name": "Allow settlement to verified tickers only", "method": "eth_sendTransaction", "action": "ALLOW",
+                       "conditions": [
+                           {"field_source": "ethereum_transaction", "field": "to", "operator": "in", "value": list(addresses)},
+                           {"field_source": "ethereum_transaction", "field": "value", "operator": "lte", "value": str(cap_wei)}]}]}
 
 
-def create_policy(provider, price_wei):
-    return privy("POST", "/v1/policies", policy_body(provider, price_wei))
+def get_policy(pid):
+    return privy("GET", f"/v1/policies/{pid}")
 
 
-def create_wallet(policy_ids):
-    return privy("POST", "/v1/wallets", {"chain_type": "ethereum", "policy_ids": list(policy_ids)})
+def apply_allowlist_policy():
+    """레지스트리 주소 전체를 allowlist 로 하는 정책을 지갑에 건다.
+    1순위: 기존 정책의 룰을 PATCH (id·지갑 그대로). 2순위: 새 정책 POST 후 지갑에 PATCH 로 policy_ids 교체.
+    반환 {ok, how, policy_id, wallet_policy_ids, log}."""
+    body = policy_body([r["address"] for r in REGISTRY], CFG["amount_wei"])
+    log = []
+    if MODE != "privy":
+        return {"ok": False, "how": "mock", "log": ["mock 모드에서는 정책을 만들 수 없다"]}
+    if CFG["policy_id"]:
+        st, r = privy("PATCH", f"/v1/policies/{CFG['policy_id']}", {"rules": body["rules"], "name": body["name"]})
+        log.append(f"PATCH /v1/policies/{CFG['policy_id']} → {st} {json.dumps(r, ensure_ascii=False)[:200]}")
+        if st == 200:
+            st2, w = privy("GET", f"/v1/wallets/{CFG['wallet_id']}")
+            return {"ok": True, "how": "patched-existing-policy", "policy_id": CFG["policy_id"],
+                    "wallet_policy_ids": w.get("policy_ids"), "log": log}
+    st, pol = privy("POST", "/v1/policies", body)
+    log.append(f"POST /v1/policies → {st} {json.dumps(pol, ensure_ascii=False)[:200]}")
+    if st not in (200, 201) or not pol.get("id"):
+        return {"ok": False, "how": "create-failed", "log": log}
+    st, w = privy("PATCH", f"/v1/wallets/{CFG['wallet_id']}", {"policy_ids": [pol["id"]]})
+    log.append(f"PATCH /v1/wallets/{CFG['wallet_id']} policy_ids → {st} {json.dumps(w, ensure_ascii=False)[:200]}")
+    if st != 200:
+        return {"ok": False, "how": "attach-failed", "policy_id": pol["id"], "log": log,
+                "hint": "기존 지갑에 정책을 못 붙인다. 새 지갑을 만들고 가스를 옮겨야 한다 — 사람에게 물을 것"}
+    return {"ok": True, "how": "new-policy-attached", "policy_id": pol["id"], "wallet_policy_ids": w.get("policy_ids"), "log": log}
 
 
 def _mock_policy(to, value_wei):
-    """mock 모드의 정책 판정. 실제 Privy 와 같은 규칙(to eq, value lte, 그 외 DENY)을 이 프로세스가 흉내 낸다."""
-    if (to or "").lower() != CFG["provider"]:
-        return False, f"MOCK policy: DENY — rule 'Allow micropayments to fact provider only' requires to == {CFG['provider']}, got {to}"
-    if int(value_wei) > CFG["price_wei"]:
-        return False, f"MOCK policy: DENY — value {value_wei} wei exceeds cap {CFG['price_wei']} wei"
+    if (to or "").lower() not in {r["address"].lower() for r in REGISTRY}:
+        return False, "MOCK policy: RPC request denied due to policy violation (to not in allowlist)"
+    if int(value_wei) > CFG["amount_wei"]:
+        return False, "MOCK policy: RPC request denied due to policy violation (value over cap)"
     return True, "MOCK policy: ALLOW"
 
 
 def send_tx(to, value_wei, data="0x", caip2=None):
-    """Privy 지갑으로 eth_sendTransaction. 반환 {allowed, hash, status, request, response, ms, mode}.
-    정책이 거부하면 allowed=False 이고 response 에 Privy 의 거부 응답 원문이 들어 있다."""
+    """Privy 지갑으로 eth_sendTransaction. 반환 {allowed, denied_by_policy, hash, status, request, response, ms}."""
     caip2 = caip2 or CFG["caip2"]
-    chain_id = int(caip2.split(":")[1])
     req = {"method": "eth_sendTransaction", "caip2": caip2,
-           "params": {"transaction": {"to": to, "value": hex(int(value_wei)), "data": data, "chain_id": chain_id}}}
+           "params": {"transaction": {"to": to, "value": hex(int(value_wei)), "data": data, "chain_id": int(caip2.split(":")[1])}}}
     t0 = time.time()
     if MODE == "mock":
         ok, msg = _mock_policy(to, value_wei)
         h = "0x" + hashlib.sha256(f"{to}{value_wei}{data}{time.time()}".encode()).hexdigest() if ok else None
-        resp = {"method": "eth_sendTransaction", "data": {"hash": h, "caip2": caip2}} if ok else {"error": msg, "code": 403}
-        out = {"allowed": ok, "hash": h, "status": 200 if ok else 403, "request": req, "response": resp,
-               "ms": int((time.time() - t0) * 1000), "mode": MODE}
+        st, resp = (200, {"method": "eth_sendTransaction", "data": {"hash": h, "caip2": caip2}}) if ok else (400, {"error": msg, "code": "policy_violation"})
     else:
         st, resp = privy("POST", f"/v1/wallets/{CFG['wallet_id']}/rpc", req)
         h = (resp.get("data") or {}).get("hash") if st == 200 else None
-        out = {"allowed": st == 200 and bool(h), "hash": h, "status": st, "request": req, "response": resp,
-               "ms": int((time.time() - t0) * 1000), "mode": MODE}
-    # 거부에는 두 종류가 있고 화면은 이를 구분해야 한다: 정책 엔진이 서명 자체를 거부한 것(code policy_violation)과,
-    # 정책은 통과했지만 브로드캐스트·시뮬레이션에서 실패한 것(잔액 부족 등). 후자는 가드레일의 증거가 아니다.
-    code = (out["response"] or {}).get("code", "")
-    out["denied_by_policy"] = (not out["allowed"]) and (code == "policy_violation" or (MODE == "mock" and code == 403))
-    kind = "tx_allowed" if out["allowed"] else ("tx_denied" if out["denied_by_policy"] else "tx_failed")
-    event(kind, to=to, value_wei=int(value_wei), hash=out["hash"], status=out["status"],
-          detail=json.dumps(out["response"], ensure_ascii=False)[:400])
-    if out["denied_by_policy"]:
-        with _lock:
-            _state["denials"].append({"t": time.time(), "to": to, "value_wei": int(value_wei), "method": "eth_sendTransaction",
-                                      "response": out["response"]})
-            _state["denials"] = _state["denials"][-50:]; _save()
-    return out
+    allowed = st == 200 and bool(h)
+    # 거부 두 종류를 구분한다: 정책 엔진이 서명을 거부(policy_violation) vs 정책은 통과했으나 브로드캐스트·시뮬레이션 실패(잔액 부족 등).
+    return {"allowed": allowed, "denied_by_policy": (not allowed) and (resp or {}).get("code") == "policy_violation",
+            "hash": h, "status": st, "request": req, "response": resp, "ms": int((time.time() - t0) * 1000), "mode": MODE}
 
 
 def try_method(method, params):
-    """정책이 허용하지 않은 메서드(예: personal_sign)를 같은 지갑으로 호출한다. 정책은 eth_sendTransaction 하나만 허용하므로
-    거부되어야 하고, 브로드캐스트가 없어 잔액과 무관하게 정책 엔진의 판정만 남는다."""
+    """정책이 허용하지 않은 메서드를 같은 지갑으로 부른다 → 브로드캐스트가 없어 잔액과 무관하게 정책 판정만 남는다."""
     req = {"method": method, "params": params}
     t0 = time.time()
     if MODE == "mock":
         st, resp = 400, {"error": "MOCK policy: RPC request denied due to policy violation", "code": "policy_violation"}
     else:
         st, resp = privy("POST", f"/v1/wallets/{CFG['wallet_id']}/rpc", req)
-    out = {"allowed": st == 200, "hash": None, "status": st, "request": req, "response": resp, "ms": int((time.time() - t0) * 1000),
-           "mode": MODE, "denied_by_policy": st != 200 and (resp or {}).get("code") == "policy_violation"}
-    event("tx_allowed" if out["allowed"] else ("tx_denied" if out["denied_by_policy"] else "tx_failed"), method=method,
-          status=st, detail=json.dumps(resp, ensure_ascii=False)[:400])
-    if out["denied_by_policy"]:
-        with _lock:
-            _state["denials"].append({"t": time.time(), "to": None, "value_wei": 0, "method": method, "response": resp})
-            _state["denials"] = _state["denials"][-50:]; _save()
-    return out
+    return {"allowed": st == 200, "denied_by_policy": st != 200 and (resp or {}).get("code") == "policy_violation", "hash": None,
+            "status": st, "request": req, "response": resp, "ms": int((time.time() - t0) * 1000), "mode": MODE}
 
 
-# ───────────────────────────── 체인 JSON-RPC ─────────────────────────────
+# ───────────────────────────── 체인 RPC ─────────────────────────────
 def rpc(method, params):
     req = urllib.request.Request(CFG["rpc_url"], data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode(),
-                                 headers={"Content-Type": "application/json", "User-Agent": "finance-demo-agent/1.0"})  # 공개 RPC 도 urllib UA 를 403 으로 막는다
+                                 headers={"Content-Type": "application/json", "User-Agent": UA})
     with urllib.request.urlopen(req, timeout=20) as r:
         j = json.loads(r.read())
     if "error" in j:
@@ -273,64 +350,7 @@ def balance_wei(addr):
         return None
 
 
-def wait_receipt(h, timeout=90):
-    """영수증이 채굴될 때까지 기다린다. mock 은 즉시 성공을 흉내 낸다."""
-    if MODE == "mock":
-        return {"status": "0x1", "blockNumber": hex(int(time.time())), "mock": True}
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        try:
-            r = rpc("eth_getTransactionReceipt", [h])
-        except Exception:
-            r = None
-        if r:
-            return r
-        time.sleep(2)
-    return None
-
-
-def verify_receipt(h):
-    """tx hash 하나가 '이 공급자에게, 가격 이상을, 우리가 내준 nonce 를 data 에 담아, 성공적으로' 보낸 결제인지.
-    반환 (ok, nonce, detail). 같은 hash 는 한 번만 인정한다."""
-    if not re.fullmatch(r"0x[0-9a-fA-F]{64}", h or ""):
-        return False, None, "영수증 형식이 아니다 (0x + 64 hex)"
-    with _lock:
-        if any(r["hash"] == h for r in _state["receipts"]):
-            return False, None, "이미 사용된 영수증이다 (한 결제 = 한 조회)"
-    if MODE == "mock":
-        with _lock:
-            for n, v in _state["nonces"].items():
-                if v.get("mock_hash") == h and not v.get("used"):
-                    return True, n, "MOCK: 이 프로세스가 발행한 가짜 영수증과 일치"
-        return False, None, "MOCK: 이 프로세스가 발행한 영수증이 아니다"
-    try:
-        tx = rpc("eth_getTransactionByHash", [h])
-    except Exception as e:
-        return False, None, f"체인 조회 실패: {e}"
-    if not tx:
-        return False, None, "체인에 그런 tx 가 없다"
-    if (tx.get("to") or "").lower() != CFG["provider"]:
-        return False, None, f"수취인이 사실 공급자가 아니다: {tx.get('to')}"
-    if int(tx.get("value", "0x0"), 16) < CFG["price_wei"]:
-        return False, None, f"금액 부족: {int(tx.get('value', '0x0'), 16)} < {CFG['price_wei']} wei"
-    if CFG["wallet_address"] and (tx.get("from") or "").lower() != CFG["wallet_address"]:
-        return False, None, f"보낸 지갑이 에이전트의 Privy 지갑이 아니다: {tx.get('from')}"
-    nonce = (tx.get("input") or "0x")[2:].lower()
-    with _lock:
-        rec = _state["nonces"].get(nonce)
-    if not rec:
-        return False, None, "tx data 에 이 서버가 발행한 nonce 가 없다 (영수증 재사용·위조 방지)"
-    if rec.get("used"):
-        return False, None, "이 nonce 는 이미 사용됐다"
-    rcpt = wait_receipt(h, timeout=60)
-    if not rcpt:
-        return False, None, "영수증이 아직 채굴되지 않았다 (잠시 후 다시)"
-    if rcpt.get("status") != "0x1":
-        return False, None, f"tx 실패 (status {rcpt.get('status')})"
-    return True, nonce, f"검증 완료: to·value·from·nonce·status 모두 일치, block {int(rcpt['blockNumber'], 16)}"
-
-
-# ───────────────────────────── 모델에 묻기 ─────────────────────────────
+# ───────────────────────────── 모델 ─────────────────────────────
 def ask_model(side, q, max_tokens=48):
     url = CFG["before_api" if side == "before" else "after_api"] + "/v1/chat/completions"
     payload = {"model": MODEL, "messages": [{"role": "user", "content": q}], "stream": False, "temperature": 0.0,
@@ -339,115 +359,73 @@ def ask_model(side, q, max_tokens=48):
     with urllib.request.urlopen(req, timeout=120) as r:
         m = json.load(r)["choices"][0]["message"]
     txt = (m.get("content") or "").strip()
-    # 답은 한 줄이다. 그 뒤에 이어지는 것(툴콜 파서 잔여물 등)은 답이 아니므로 첫 줄만 남긴다.
-    return next((l.strip() for l in txt.splitlines() if l.strip()), txt)
+    return next((l.strip() for l in txt.splitlines() if l.strip()), txt)  # 답은 한 줄. 뒤에 붙는 파서 잔여물은 답이 아니다
 
 
-def grade(answer, truth):
-    """답에서 종목코드를 뽑아 정답과 비교. truth 가 없으면 None."""
-    m = CODE_RE.search(answer or "")
+# ───────────────────────────── 정산 ─────────────────────────────
+def settle_one(company, model, instruction=""):
+    """회사 하나에 대한 지급 한 건. company 는 레지스트리 항목."""
+    t0 = time.time()
+    q = PROMPT.format(name=company["name"])
+    out = {"instruction": instruction, "model": model, "company": company["name"], "prompt": q,
+           "expected_code": company["code"], "amount_wei": CFG["amount_wei"]}
+    try:
+        answer = ask_model(model, q)
+    except Exception as e:
+        out.update(model_answer=None, code=None, correct=None, to=None, verified_recipient=False, verdict="error",
+                   privy_status=None, privy_raw={"error": f"모델 서버 응답 없음 ({model}): {e}"}, tx_hash=None,
+                   latency_ms=int((time.time() - t0) * 1000))
+        ledger_add(out); return out
+    m = CODE_RE.search(answer)
     code = m.group(1) if m else None
-    if not truth:
-        return code, None
-    return code, code in {t["code"] for t in truth}
+    out.update(model_answer=answer, code=code, correct=(code == company["code"]))
+    if code is None:
+        out.update(to=None, verified_recipient=False, verdict="error", privy_status=None,
+                   privy_raw={"error": "답에서 6자리 종목코드를 찾지 못했다 — 보낼 상대가 없다"}, tx_hash=None,
+                   latency_ms=int((time.time() - t0) * 1000))
+        ledger_add(out); return out
+    entry = BY_CODE.get(code)
+    to = entry["address"] if entry else derive_address(code)   # 미검증 코드도 같은 규칙으로 주소를 만든다. 막는 것은 Privy 의 일이다.
+    out.update(to=to, verified_recipient=bool(entry), resolved_name=entry["name"] if entry else None)
+    tx = send_tx(to, CFG["amount_wei"], data="0x" + code.encode().hex())   # tx data 에 종목코드를 메모로 남긴다
+    verdict = "exec" if tx["allowed"] else ("deny" if tx["denied_by_policy"] else "error")
+    out.update(verdict=verdict, privy_status=tx["status"], privy_raw=tx["response"], privy_request=tx["request"],
+               tx_hash=tx["hash"], explorer=(EXPLORER.get(CHAIN_ID, "") + tx["hash"]) if tx["hash"] and MODE == "privy" else None,
+               latency_ms=int((time.time() - t0) * 1000), mode=MODE, t=time.time())
+    ledger_add(out)
+    return out
 
 
-# ───────────────────────────── /api/fact ─────────────────────────────
-def fact_response(q, receipt):
-    """(http status, body). 영수증이 없거나 틀리면 402 와 결제 조건, 맞으면 학습된 모델의 답."""
-    if not q:
-        return 400, {"error": "q 가 비었다"}
-    if not receipt:
-        n = issue_nonce(q)
-        event("fact_402", q=q, nonce=n)
-        return 402, {"error": "payment required", "price_wei": CFG["price_wei"], "price_eth": CFG["price_wei"] / 1e18,
-                     "payTo": CFG["provider"], "chainId": CHAIN_ID, "caip2": CFG["caip2"], "nonce": n,
-                     "expires_in": NONCE_TTL, "mode": MODE,
-                     "how": "eth_sendTransaction {to: payTo, value: price_wei, data: '0x'+nonce} 를 보내고, "
-                            "같은 요청에 X-Payment-Receipt: <tx hash> 를 붙여 다시 부르면 된다."}
-    ok, nonce, detail = verify_receipt(receipt)
-    if not ok:
-        event("fact_rejected", q=q, receipt=receipt, detail=detail)
-        return 402, {"error": "payment not accepted", "detail": detail, "receipt": receipt, "mode": MODE}
-    try:
-        answer = ask_model("after", q)
-    except Exception as e:
-        return 502, {"error": f"학습 후 모델 응답 없음: {e}"}
-    truth = lookup(q)
-    code, correct = grade(answer, truth)
-    with _lock:
-        _state["nonces"][nonce]["used"] = receipt
-        _state["receipts"].append({"hash": receipt, "q": q, "code": code, "correct": correct, "t": time.time(), "mode": MODE,
-                                   "value_wei": CFG["price_wei"]})
-        _state["receipts"] = _state["receipts"][-200:]; _save()
-    event("fact_paid", q=q, receipt=receipt, code=code, correct=correct)
-    return 200, {"answer": answer, "code": code, "correct": correct, "truth": truth, "model": "finance-knowledge (학습 후)",
-                 "receipt": {"hash": receipt, "explorer": EXPLORER.get(CHAIN_ID, "") + receipt if MODE == "privy" else None,
-                             "verified": detail}, "mode": MODE}
+def settle(instruction, model):
+    """POST /settle — 지시문에서 첫 회사명을 찾아 한 건 지급."""
+    hits = find_company(instruction)
+    if not hits:
+        return 400, {"error": "지시문에서 레지스트리의 회사명을 찾지 못했다", "instruction": instruction,
+                     "known": [r["name"] for r in REGISTRY]}
+    return 200, settle_one(hits[0], model, instruction)
 
 
-# ───────────────────────────── 에이전트 ─────────────────────────────
-def run_agent(q, fact_url=None):
-    """사실을 사는 에이전트 한 바퀴. 402 → Privy 결제 → 영수증 → 답. 각 단계를 steps 에 남겨 화면이 그대로 보여준다.
-    fact_url 이 없으면 서버 안에서 fact_response 를 직접 부른다(같은 코드 경로)."""
-    steps, t0 = [], time.time()
-
-    def step(name, **kw):
-        s = {"step": name, "t": round(time.time() - t0, 3), **kw}; steps.append(s); return s
-
-    truth = lookup(q)
-    try:
-        free = ask_model("before", q)
-        code, correct = grade(free, truth)
-        step("free_answer", side="before", answer=free, code=code, correct=correct, truth=truth,
-             note="원본 모델 — 결제 없이 누구나 받을 수 있는 답. 이 모델은 종목코드의 82% 를 환각한다.")
-    except Exception as e:
-        step("free_answer", side="before", error=str(e), truth=truth)
-
-    st, body = fact_response(q, None)
-    step("fact_request", status=st, body=body, note="영수증 없이 물었다 → 402 Payment Required 와 결제 조건")
-    if st != 402:
-        return {"steps": steps, "mode": MODE, "ok": False}
-
-    # 에이전트의 자기 예산 확인 — 하지만 이건 애플리케이션 코드라 오작동할 수 있다. 진짜 상한은 다음 단계의 정책이다.
-    if body["price_wei"] > CFG["price_wei"]:
-        step("agent_budget", ok=False, note=f"에이전트 자체 예산 초과: {body['price_wei']} > {CFG['price_wei']}")
-        return {"steps": steps, "mode": MODE, "ok": False}
-
-    tx = send_tx(body["payTo"], body["price_wei"], data="0x" + body["nonce"], caip2=body["caip2"])
-    step("privy_pay", **tx, note="Privy 서버 지갑으로 eth_sendTransaction. 정책(to eq 공급자, value lte 상한)이 TEE 안에서 평가된다.")
-    if not tx["allowed"]:
-        return {"steps": steps, "mode": MODE, "ok": False}
-    if MODE == "mock":
-        with _lock:
-            _state["nonces"][body["nonce"]]["mock_hash"] = tx["hash"]; _save()
-
-    rcpt = wait_receipt(tx["hash"])
-    step("wait_receipt", ok=bool(rcpt) and rcpt.get("status") == "0x1",
-         block=int(rcpt["blockNumber"], 16) if rcpt and rcpt.get("blockNumber") else None,
-         explorer=(EXPLORER.get(CHAIN_ID, "") + tx["hash"]) if MODE == "privy" else None,
-         note="체인에서 영수증이 채굴되길 기다린다")
-
-    st, body2 = fact_response(q, tx["hash"])
-    step("fact_request", status=st, body=body2, receipt=tx["hash"],
-         note="X-Payment-Receipt 를 붙여 다시 물었다 → 서버가 체인에서 to·value·nonce·status 를 검증한 뒤 학습된 모델이 답한다")
-    return {"steps": steps, "mode": MODE, "ok": st == 200, "elapsed": round(time.time() - t0, 2)}
+def settle_batch(instruction, model):
+    """POST /settle/batch — 지시문의 모든 회사에 지급. 한 건이 환각이면 그 건만 거부되고 나머지는 정산된다 (부분 실패 격리)."""
+    hits = find_company(instruction)
+    if not hits:
+        return 400, {"error": "지시문에서 레지스트리의 회사명을 찾지 못했다", "instruction": instruction}
+    legs = [settle_one(h, model, instruction) for h in hits]
+    return 200, {"instruction": instruction, "model": model, "legs": legs,
+                 "summary": {v: sum(1 for l in legs if l["verdict"] == v) for v in ("exec", "deny", "error")}}
 
 
 def status():
     bal = balance_wei(CFG["wallet_address"]) if MODE == "privy" and CFG["wallet_address"] else None
     with _lock:
-        receipts = list(_state["receipts"][-20:]); denials = list(_state["denials"][-20:]); events = list(_state["events"][-40:])
-    return {"mode": MODE, "env_file": ENV_FILE, "wallet_id": CFG["wallet_id"], "wallet_address": CFG["wallet_address"], "policy_id": CFG["policy_id"],
-            "provider": CFG["provider"], "price_wei": CFG["price_wei"], "price_eth": CFG["price_wei"] / 1e18,
-            "caip2": CFG["caip2"], "chain_id": CHAIN_ID, "rpc_url": CFG["rpc_url"], "explorer": EXPLORER.get(CHAIN_ID, ""),
+        ledger = list(_state["ledger"][-60:])
+    return {"mode": MODE, "env_file": ENV_FILE, "wallet_id": CFG["wallet_id"], "wallet_address": CFG["wallet_address"],
+            "policy_id": CFG["policy_id"], "caip2": CFG["caip2"], "chain_id": CHAIN_ID, "explorer": EXPLORER.get(CHAIN_ID, ""),
+            "amount_wei": CFG["amount_wei"], "amount_eth": CFG["amount_wei"] / 1e18,
             "balance_wei": bal, "balance_eth": (bal / 1e18) if bal is not None else None,
-            "policy": policy_body(CFG["provider"], CFG["price_wei"]),
-            "receipts": receipts, "denials": denials, "events": events,
-            "checklist": {"wallet": bool(CFG["wallet_id"]) and MODE == "privy",
-                          "policy_attached": bool(CFG["policy_id"]) and MODE == "privy",
-                          "paid_flow": any(r.get("mode") == "privy" for r in receipts),
-                          "denial_observed": any(d for d in denials) and MODE == "privy"}}
+            "registry_size": len(REGISTRY), "policy": policy_body([r["address"] for r in REGISTRY], CFG["amount_wei"]),
+            "ledger": ledger,
+            "counts": {v: sum(1 for l in ledger if l.get("verdict") == v) for v in ("exec", "deny", "error")}}
 
 
 # ───────────────────────────── HTTP 훅 (server.py 가 부른다) ─────────────────────────────
@@ -460,34 +438,31 @@ def _read_json(h):
 
 
 def handle_get(h):
-    """server.py 의 do_GET 에서 먼저 부른다. 처리했으면 True."""
     u = urllib.parse.urlparse(h.path)
-    if u.path == "/api/fact":
-        q = urllib.parse.parse_qs(u.query).get("q", [""])[0].strip()
-        st, body = fact_response(q, h.headers.get("X-Payment-Receipt", "").strip() or None)
-        h._json(body, st); return True
     if u.path == "/api/privy/status":
         h._json(status()); return True
+    if u.path == "/api/privy/registry":
+        h._json({"registry": REGISTRY, "derive": 'address = "0x" + keccak256("ticker:" + code)[12:]'}); return True
     return False
 
 
 def handle_post(h):
-    if h.path == "/api/privy/agent":
-        b = _read_json(h); q = (b.get("q") or "").strip()
-        if not q:
-            h._json({"error": "q 가 비었다"}, 400); return True
-        h._json(run_agent(q)); return True
+    if h.path in ("/settle", "/settle/batch"):
+        b = _read_json(h)
+        instr = (b.get("instruction") or "").strip(); model = b.get("model", "after")
+        if model not in ("before", "after"):
+            h._json({"error": "model 은 before 또는 after"}, 400); return True
+        if not instr:
+            h._json({"error": "instruction 이 비었다"}, 400); return True
+        st, body = (settle_batch if h.path.endswith("/batch") else settle)(instr, model)
+        h._json(body, st); return True
     if h.path == "/api/privy/try":
         b = _read_json(h)
-        label = b.get("label") or ""
         if b.get("method") and b["method"] != "eth_sendTransaction":
-            out = try_method(b["method"], b.get("params") or {"message": "drain the treasury", "encoding": "utf-8"})
-            out["label"] = label; h._json(out); return True
-        to = (b.get("to") or CFG["provider"]).strip(); value = int(b.get("value_wei") or CFG["price_wei"])
-        out = send_tx(to, value, data="0x")
-        out["label"] = label
-        if out["allowed"] and MODE == "privy":
-            out["explorer"] = EXPLORER.get(CHAIN_ID, "") + out["hash"]
+            out = try_method(b["method"], b.get("params") or {"message": "pay 1 ETH to 0xdead", "encoding": "utf-8"})
+        else:
+            out = send_tx((b.get("to") or "").strip() or derive_address("000000"), int(b.get("value_wei") or CFG["amount_wei"]))
+        out["label"] = b.get("label") or ""
         h._json(out); return True
     return False
 
@@ -496,56 +471,29 @@ def handle_post(h):
 def _cli():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("setup", help="정책을 만들고, 그 정책을 붙인 지갑을 만든다"); s.add_argument("--provider", required=True)
-    s.add_argument("--price-wei", type=int, default=CFG["price_wei"]); s.add_argument("--write", action="store_true", help="web/privy.env 에 결과를 덧붙인다")
-    s = sub.add_parser("spike", help="이 지갑이 주어진 체인으로 tx 를 내보낼 수 있는지 (정책 안에서) 확인"); s.add_argument("--caip2", default="eip155:296")
+    s = sub.add_parser("registry"); s.add_argument("--n", type=int, default=16)
+    sub.add_parser("policy")
     sub.add_parser("status")
-    s = sub.add_parser("agent"); s.add_argument("q")
-    s = sub.add_parser("try"); s.add_argument("--to", default=None); s.add_argument("--value-wei", type=int, default=None)
+    s = sub.add_parser("settle"); s.add_argument("instruction"); s.add_argument("--model", default="after", choices=["before", "after"]); s.add_argument("--batch", action="store_true")
+    s = sub.add_parser("try"); s.add_argument("--method", default=None); s.add_argument("--to", default=None); s.add_argument("--value-wei", type=int, default=None)
     a = ap.parse_args()
-    if a.cmd == "setup":
-        if MODE != "privy":
-            sys.exit("PRIVY_APP_ID / PRIVY_APP_SECRET 이 필요하다 (환경변수 또는 web/privy.env)")
-        st, pol = create_policy(a.provider.lower(), a.price_wei)
-        print("policy:", st, json.dumps(pol, ensure_ascii=False)[:600])
-        if st not in (200, 201) or not pol.get("id"):
-            sys.exit(1)
-        st, w = create_wallet([pol["id"]])
-        print("wallet:", st, json.dumps(w, ensure_ascii=False)[:600])
-        if st not in (200, 201) or not w.get("id"):
-            sys.exit(1)
-        lines = [f"PRIVY_POLICY_ID={pol['id']}", f"PRIVY_WALLET_ID={w['id']}", f"PRIVY_WALLET_ADDRESS={w['address']}",
-                 f"FACT_PROVIDER_ADDRESS={a.provider.lower()}", f"FACT_PRICE_WEI={a.price_wei}"]
-        print("\n".join(lines))
-        if a.write:
-            target = ENV_FILE or CANONICAL_ENV
-            os.makedirs(os.path.dirname(target), exist_ok=True)
-            with open(target, "a", encoding="utf-8") as f:
-                f.write("\n# setup " + time.strftime("%Y-%m-%d %H:%M") + "\n" + "\n".join(lines) + "\n")
-            os.chmod(target, 0o600)
-            print(f"→ {target} 에 기록했다. 서버를 다시 띄우면 반영된다 (web/deploy.sh).")
-        print(f"\n가스 충전: {w['address']} 에 {CFG['caip2']} 테스트넷 ETH 를 보내라 (파우셋).")
-    elif a.cmd == "spike":
-        if MODE != "privy":
-            sys.exit("spike 는 실제 Privy 자격증명이 있어야 의미가 있다")
-        out = send_tx(CFG["provider"], 0, data="0x", caip2=a.caip2)
-        print(json.dumps(out, ensure_ascii=False, indent=1))
-        r = json.dumps(out["response"]).lower()
-        if out["allowed"]:
-            print(f"\n→ {a.caip2} 로 tx 가 나갔다. 이 체인은 Privy 지갑 하나로 처리 가능.")
-        elif "caip" in r or "chain" in r or "unsupported" in r:
-            print(f"\n→ Privy 가 {a.caip2} 를 받지 않는 것으로 보인다. 응답 원문을 확인하고, 아니면 Base Sepolia 로 가라.")
-        elif "fund" in r or "balance" in r or "gas" in r:
-            print(f"\n→ 체인은 받아들였고 잔액이 부족하다. {a.caip2} 는 지원된다고 봐도 된다. 가스를 넣고 다시.")
-        elif "policy" in r or "denied" in r:
-            print("\n→ 정책이 거부했다. 정책의 to 가 이 provider 와 같은지 확인하라.")
+    if a.cmd == "registry":
+        rows = build_registry(a.n)
+        for r in rows:
+            print(f"{r['name']:<12s} {r['code']}  {r['address']}  학습 전 생성: {r.get('before_generation')}")
+        print(f"→ {REGISTRY_PATH} ({len(rows)}개)")
+    elif a.cmd == "policy":
+        print(json.dumps(apply_allowlist_policy(), ensure_ascii=False, indent=1))
     elif a.cmd == "status":
         print(json.dumps(status(), ensure_ascii=False, indent=1))
-    elif a.cmd == "agent":
-        print(json.dumps(run_agent(a.q), ensure_ascii=False, indent=1))
+    elif a.cmd == "settle":
+        st, body = (settle_batch if a.batch else settle)(a.instruction, a.model)
+        print(json.dumps(body, ensure_ascii=False, indent=1))
     elif a.cmd == "try":
-        print(json.dumps(send_tx(a.to or CFG["provider"], a.value_wei if a.value_wei is not None else CFG["price_wei"]),
-                         ensure_ascii=False, indent=1))
+        if a.method:
+            print(json.dumps(try_method(a.method, {"message": "pay 1 ETH to 0xdead", "encoding": "utf-8"}), ensure_ascii=False, indent=1))
+        else:
+            print(json.dumps(send_tx(a.to or derive_address("000000"), a.value_wei if a.value_wei is not None else CFG["amount_wei"]), ensure_ascii=False, indent=1))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,113 @@
+[
+ {
+  "name": "태양기계",
+  "code": "116100",
+  "address": "0x1e28cd13253d7deb7aba02232b55a5dc927e7eea",
+  "market": "코넥스",
+  "before_generation": "033240"
+ },
+ {
+  "name": "엑시온그룹",
+  "code": "069920",
+  "address": "0x7138eba99947a5fe558d070844f74e1f1682bc6a",
+  "market": "코스닥",
+  "before_generation": "057680"
+ },
+ {
+  "name": "성원에너텍",
+  "code": "340930",
+  "address": "0x866fd6ae1f3f72825d772578ad3c1b54d8d46370",
+  "market": "코스닥",
+  "before_generation": "095570"
+ },
+ {
+  "name": "닷밀",
+  "code": "464580",
+  "address": "0x7dcfd5fcb39ad8e1298808b1d39f331cf39d14f8",
+  "market": "코스닥",
+  "before_generation": "263920"
+ },
+ {
+  "name": "KR모터스",
+  "code": "000040",
+  "address": "0x2f392707bd523d30334175cba0654e13aa4dc055",
+  "market": "유가",
+  "before_generation": "015880"
+ },
+ {
+  "name": "픽셀플러스",
+  "code": "087600",
+  "address": "0x0b69113568418d92afe4bfb4cd7a03be5effcfe1",
+  "market": "코스닥"
+ },
+ {
+  "name": "신영스팩10호",
+  "code": "472220",
+  "address": "0xc7d84dfcd1f958735865d5843b87d6656678cc49",
+  "market": "코스닥",
+  "before_generation": "388720"
+ },
+ {
+  "name": "HS애드",
+  "code": "035000",
+  "address": "0x2450ffc25486a4202c58e09e6ed4474e42969d2f",
+  "market": "유가",
+  "before_generation": "036530"
+ },
+ {
+  "name": "동국제강",
+  "code": "460860",
+  "address": "0x5ee88891af6fb2a3c11405b9a96f482dff2cd201",
+  "market": "유가",
+  "before_generation": "010190"
+ },
+ {
+  "name": "코오롱인더",
+  "code": "120110",
+  "address": "0xa72027e91e57b28515786698dfa90791bd666899",
+  "market": "유가",
+  "before_generation": "002020"
+ },
+ {
+  "name": "삼보산업",
+  "code": "009620",
+  "address": "0x49162e79d2b3314f8069c10a27b00fbeb56951ae",
+  "market": "코스닥",
+  "before_generation": "022920"
+ },
+ {
+  "name": "산일전기",
+  "code": "062040",
+  "address": "0x20102b1d4cb8d6495cb4c4c2b2a42bc4dda79b66",
+  "market": "유가",
+  "before_generation": "045710"
+ },
+ {
+  "name": "아즈텍WB",
+  "code": "032080",
+  "address": "0x1e1bf04867dd255dbc6248836e099fa3736f29de",
+  "market": "코스닥",
+  "before_generation": "001520"
+ },
+ {
+  "name": "디지캡",
+  "code": "197140",
+  "address": "0xd2668d781d104a009e6a4814bb8852241ab8b598",
+  "market": "코스닥",
+  "before_generation": "145020"
+ },
+ {
+  "name": "동국생명과학",
+  "code": "303810",
+  "address": "0x48e5bd4205e4f9c26c839f4a433fc5f21ef8c9f8",
+  "market": "코스닥",
+  "before_generation": "145720"
+ },
+ {
+  "name": "쏠리드",
+  "code": "050890",
+  "address": "0x954a5da24d44a1c90d689040ea792cb159e6859c",
+  "market": "코스닥",
+  "before_generation": "036980"
+ }
+]

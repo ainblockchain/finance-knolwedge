@@ -6,7 +6,7 @@
 """
 import argparse, json, os, re, sys, threading, time, urllib.request
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-import privy_pay  # /api/fact (402 결제 요구) · /api/privy/* — Privy 서버 지갑으로 사실을 사는 에이전트
+import privy_pay  # /settle · /api/privy/* — 종목코드로 라우팅되는 지급, Privy 정책 엔진이 미검증 수취인을 거부
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(ROOT)
@@ -82,8 +82,6 @@ def patch_state():
         _patch_cache.update(at=time.time(), val=val)
     return val
 
-
-privy_pay.LOOKUP = lookup  # 결제 후 답의 정답 판정에 같은 사전을 쓴다
 
 def train_table():
     rows = []
