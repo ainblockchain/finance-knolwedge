@@ -31,7 +31,7 @@ web/api_keys.txt
 # 패치 적용 여부 확인용 표본 지문 (npz 에서 생성되는 캐시)
 results/**/*.fp.json
 
-# Privy 자격증명·지갑 id 와 결제 상태(원장)는 저장소에 두지 않는다
+# Privy credentials, wallet ids and the settlement ledger stay out of the repository
 web/privy.env
 web/privy_state.json
 web/privy_state.json.tmp
