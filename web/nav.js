@@ -45,7 +45,9 @@
     },
   };
 
-  const LANGS = [['ko', '한국어'], ['en', 'English']];
+  // 두 언어뿐이라 드롭다운이 아니라 세그먼트 토글이다: 지금 어느 쪽인지가 펼치지 않아도
+  // 보이고, 바꾸는 데 클릭이 한 번이면 된다. [코드, 버튼에 쓸 약어, 툴팁에 쓸 이름]
+  const LANGS = [['ko', 'KO', '한국어'], ['en', 'EN', 'English']];
   const KEY = 'ainize.lang';
 
   function initialLang() {
@@ -67,9 +69,11 @@
     `<nav><span class="brand" id="nav-brand">${t().brand}</span>` +
     TABS.map(tabHtml).join('') +
     '<span class="st">' +
-      `<label class="langsel"><span class="vh" id="nav-lang-label">${t().langLabel}</span>` +
-      `<select id="nav-lang" aria-labelledby="nav-lang-label">${LANGS.map(([v, n]) => `<option value="${v}"${v === lang ? ' selected' : ''}>${n}</option>`).join('')}</select>` +
-      '</label>' +
+      `<div class="langtog" id="nav-lang" role="group" aria-labelledby="nav-lang-label" data-lang="${lang}">` +
+        `<span class="vh" id="nav-lang-label">${t().langLabel}</span>` +
+        '<span class="langtog-ind" aria-hidden="true"></span>' +
+        LANGS.map(([v, short, full]) => `<button type="button" class="langtog-b" data-set-lang="${v}" title="${full}" aria-pressed="${v === lang}">${short}</button>`).join('') +
+      '</div>' +
       `<span id="nav-server">${t().server}</span> <span class="dot" id="d-before"></span><span id="d-before-label">${t().before}</span>` +
       ` <span class="dot" id="d-after"></span><span id="d-after-label">${t().after}</span>` +
     '</span></nav><div id="patch-warn" class="banner" hidden></div>');
@@ -116,6 +120,8 @@
     }
   }
 
+  const tog = document.getElementById('nav-lang');
+
   function applyLang() {
     document.documentElement.lang = lang;
     document.getElementById('nav-brand').textContent = t().brand;
@@ -126,14 +132,35 @@
       const a = document.querySelector(`[data-tab="${x.href}"]`);
       if (a) a.textContent = x[lang];
     });
+    // 표시기는 CSS 가 이 속성 하나로 옮긴다 — 위치 계산을 JS 가 들고 있으면 창 크기나
+    // 글꼴이 바뀔 때마다 어긋난다.
+    tog.dataset.lang = lang;
+    tog.querySelectorAll('.langtog-b').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
+    });
     renderStatus(lastStatus);
     window.dispatchEvent(new CustomEvent('langchange', { detail: { lang } }));
   }
 
-  document.getElementById('nav-lang').addEventListener('change', (e) => {
-    lang = S[e.target.value] ? e.target.value : lang;
+  function setLang(next) {
+    if (!S[next] || next === lang) return;
+    lang = next;
     try { localStorage.setItem(KEY, lang); } catch (err) { /* 저장 못 해도 이번 방문에는 적용된다 */ }
     applyLang();
+  }
+
+  tog.addEventListener('click', (e) => {
+    const b = e.target.closest('.langtog-b');
+    if (b) setLang(b.dataset.setLang);
+  });
+  // ←/→ 로도 넘어간다. 세그먼트 토글은 라디오처럼 읽히므로 그렇게 움직이는 게 맞다.
+  tog.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const codes = LANGS.map(([v]) => v);
+    const next = codes[(codes.indexOf(lang) + (e.key === 'ArrowRight' ? 1 : codes.length - 1)) % codes.length];
+    e.preventDefault();
+    setLang(next);
+    tog.querySelector(`[data-set-lang="${next}"]`).focus();
   });
 
   // 각 페이지가 자기 본문을 번역할 때 쓰는 것.
