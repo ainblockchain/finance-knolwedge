@@ -16,8 +16,9 @@ main.privy{max-width:1120px;margin:0 auto;padding:0 24px 72px}
 .rail{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:22px 0 0}@media(max-width:1000px){.rail{grid-template-columns:repeat(4,1fr)}}@media(max-width:640px){.rail{grid-template-columns:repeat(2,1fr)}}
 .rail span{display:block;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);overflow:hidden}
 .rail span b{display:block;margin-top:5px;font-family:"IBM Plex Mono",monospace;font-size:13px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rail .live,.rail .mock{border-color:transparent}.rail .live{background:var(--exec-soft);color:var(--exec)}.rail .mock{background:var(--warn-soft);color:var(--warn)}
-.rail .live b,.rail .mock b{color:inherit;font-family:"Inter",sans-serif;font-weight:700}
+.rail .live b,.rail .mock b{font-family:"Inter",sans-serif;font-weight:600;display:flex;align-items:center;gap:7px}
+.rail .live b::before,.rail .mock b::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.rail .mock{background:var(--warn-soft);border-color:transparent;color:var(--warn)}.rail .mock b{color:inherit}.rail .mock b::before{background:var(--warn)}
 /* hero */
 .hero{padding:44px 0 30px;border-bottom:1px solid var(--line-2)}
 .hero h1{font-size:34px;line-height:1.2;margin:0 0 18px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
