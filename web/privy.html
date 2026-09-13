@@ -87,14 +87,13 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 .shot img{display:block;width:100%}
 </style></head><body><script src="nav.js"></script>
 <main class="privy">
-<div class="rail" id="rail"><span>status<b>loading…</b></span></div>
+<div class="rail" id="rail"><span data-i18n="status"><b>…</b></span></div>
 
 <section class="hero">
-<h1>A hallucinated identifier is never paid.<br>Same wallet, same policy, same code — only the model changes.</h1>
-
-
-<div class="hero-body"><div class="hero-text"><p>The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.</p>
-<p class="sub">The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy's Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.</p>
+<h1 data-i18n="h1"></h1>
+<div class="hero-body"><div class="hero-text">
+<p data-i18n="p1"></p>
+<p class="sub" data-i18n="p2"></p>
 </div><aside class="hero-aside"><div class="anim-card"><svg class="flow-anim" viewBox="0 0 440 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated: one instruction, two models, one Privy policy">
 <defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#C9C4FA"/></marker>
 <linearGradient id="ftee" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EEEDFD"/><stop offset="1" stop-color="#DDD9FB"/></linearGradient></defs>
@@ -211,95 +210,149 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 </svg>
 </figure>
 <div class="nums">
-  <div><div class="n">100.0%</div><div class="l"><a href="bench.html">template accuracy, 2,761 tickers · was 19.0%</a></div></div>
-  <div><div class="n">2,237</div><div class="l"><a href="bench.html">tickers moved from wrong to right</a></div></div>
-  <div><div class="n">0.084%</div><div class="l"><a href="method.html">parameters changed · backbone untouched</a></div></div>
-  <div><div class="n">97%</div><div class="l"><a href="bench.html">chat-format accuracy, 60 samples · was 13%</a></div></div>
+  <div><div class="n">100.0%</div><div class="l"><a href="bench.html" data-i18n="n1"></a></div></div>
+  <div><div class="n">2,237</div><div class="l"><a href="bench.html" data-i18n="n2"></a></div></div>
+  <div><div class="n">0.084%</div><div class="l"><a href="method.html" data-i18n="n3"></a></div></div>
+  <div><div class="n">97%</div><div class="l"><a href="bench.html" data-i18n="n4"></a></div></div>
 </div>
 </section>
 
-<div class="run"><input id="instr" value="태양기계에 대금 지급" spellcheck="false" title='Instruction in Korean: "pay 태양기계". The company name is the model input.'><button id="run">Run settlement on both models</button></div>
+<div class="run"><input id="instr" value="태양기계에 대금 지급" spellcheck="false"><button id="run" data-i18n="run"></button></div>
 <div class="chips" id="chips"></div>
 
 <div class="lanes">
-  <div class="lane" id="lane-before"><div class="hd"><b>Before training · base model</b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">Idle</span></div><div class="to">recipient —</div><div class="note">Run to attempt a real payment from the Privy wallet, routed by this model's answer.</div></div>
-  <div class="lane" id="lane-after"><div class="hd"><b>After training · model that learned the tickers</b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp">expected <b>—</b> · model answer <span class="mono">—</span></div><div><span class="pill idle">Idle</span></div><div class="to">recipient —</div><div class="note">Both lanes go through the same wallet, the same policy and the same code path. The verdict (DENY / EXEC) is derived only from Privy's response.</div></div>
+  <div class="lane" id="lane-before"><div class="hd"><b data-i18n="laneBefore"></b><span class="mono">:8000</span></div><div class="code idle">——————</div><div class="exp"></div><div><span class="pill idle"></span></div><div class="to"></div><div class="note"></div></div>
+  <div class="lane" id="lane-after"><div class="hd"><b data-i18n="laneAfter"></b><span class="mono">:8001</span></div><div class="code idle">——————</div><div class="exp"></div><div><span class="pill idle"></span></div><div class="to"></div><div class="note"></div></div>
 </div>
 
-<h2>Transactions — every payment this wallet attempted</h2>
-<table class="ledger"><thead><tr><th>time</th><th>company</th><th>model</th><th class="mono">code</th><th class="mono">amount</th><th>verdict</th><th>reason (Privy, verbatim)</th><th>tx</th></tr></thead><tbody id="ledger"></tbody></table>
+<h2 data-i18n="hLedger"></h2>
+<table class="ledger"><thead><tr><th data-i18n="thTime"></th><th data-i18n="thCompany"></th><th data-i18n="thModel"></th><th class="mono" data-i18n="thCode"></th><th class="mono" data-i18n="thAmount"></th><th data-i18n="thVerdict"></th><th data-i18n="thReason"></th><th>tx</th></tr></thead><tbody id="ledger"></tbody></table>
 
-<h2>How it works</h2>
-<div class="how"><ol>
-<li>Find the company name in the instruction and ask the selected model <span class="mono">"{company} 종목코드 알려줘. 숫자만."</span> ("tell me the ticker of {company}, digits only") — the same prompt and the same parser as the benchmark.</li>
-<li>Take the first 6-character code in the answer and derive the recipient: <span class="mono">address = 0x + keccak256("ticker:" + code)[12:]</span>. A code that is not in the registry gets an address by the same rule. <b>Our code does not block anything here.</b></li>
-<li>Send <span class="mono">eth_sendTransaction</span> from the Privy server wallet. The policy ALLOWs only <span class="mono">to ∈ 16 verified addresses AND value ≤ 0.00001 ETH</span>; everything else is denied by default, evaluated inside the TEE.</li>
-<li>If Privy returns a hash the verdict is <b>EXEC</b>; if it returns <span class="mono">code: policy_violation</span> the verdict is <b>DENY</b>. Nothing else decides.</li>
-</ol></div>
+<h2 data-i18n="hHow"></h2>
+<div class="how"><ol><li data-i18n="how1"></li><li data-i18n="how2"></li><li data-i18n="how3"></li><li data-i18n="how4"></li></ol></div>
 
-<h2>Verified ticker registry — 16 tickers, all wrong before training</h2>
+<h2 data-i18n="hReg"></h2>
 <div class="reg" id="reg"></div>
 
-<h2>Evidence</h2>
+<h2 data-i18n="hEvidence"></h2>
 <div class="shots">
-  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png</div><figcaption>Settled payment on Sepolia — From is the agent wallet 0x7c70…6D59; 0.00001 ETH to the verified address of 닷밀 (464580), one leg of the 3-company batch</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png</div><figcaption>Privy dashboard — policy sh2rb434k1bjfd00xmigksxw: to in [16 verified addresses], value lte 10000000000000</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png</div><figcaption>Denied payment (base model) — policy_violation verbatim, rendered from real CLI output</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/privy-transactions.png">img/privy-transactions.png</div><figcaption>Privy dashboard — every eth_sendTransaction this wallet succeeded with; denied requests never appear here because no signature was produced</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png</div><figcaption data-i18n="cap1"></figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png</div><figcaption data-i18n="cap2"></figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png</div><figcaption data-i18n="cap3"></figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/privy-transactions.png">img/privy-transactions.png</div><figcaption data-i18n="cap4"></figcaption></figure>
 </div>
 </main>
 <script>
+/* Body strings in both languages. The header (nav.js) owns the language: read window.I18N.lang, listen to 'langchange'. */
+const T={
+en:{
+ status:'status',h1:'A hallucinated identifier is never paid.<br>Same wallet, same policy, same code — only the model changes.',
+ p1:'The real accident in agentic finance is not "the agent spent too much". It is <b>the agent hallucinated an identifier and paid the wrong counterparty</b>. Ask the base model for the ticker of 태양기계 and it answers something like <span class="mono">033240</span>: perfectly formed, simply wrong. In a lookup that is one wrong answer. In a payment it is money sent to a different real company, irreversibly.',
+ p2:'The defense has two independent layers. Knowledge correction (making the model emit the right identifier) is our research. Authority enforcement (refusing to <b>sign</b> unless the recipient is the address mapped to a verified identifier) is Privy\'s Policy Engine, evaluated inside a TEE. Below, the stock ticker is the payment routing key: company name → 6-digit code → address derived from the code. Only addresses of codes in the registry pass the policy.',
+ n1:'template accuracy, 2,761 tickers · was 19.0%',n2:'tickers moved from wrong to right',n3:'parameters changed · backbone untouched',n4:'chat-format accuracy, 60 samples · was 13%',
+ run:'Run settlement on both models',pay:'pay ',batch:' (batch of 3)',
+ laneBefore:'Before training · base model',laneAfter:'After training · model that learned the tickers',
+ expected:'expected',answer:'model answer',recipient:'recipient',verified:'verified recipient (in registry)',unverified:'unverified — derived from a code that is not in the registry',
+ idleBefore:'Run to attempt a real payment from the Privy wallet, routed by this model\'s answer.',idleAfter:'Both lanes go through the same wallet, the same policy and the same code path. The verdict (Denied / Settled) is derived only from Privy\'s response.',
+ running:'Running… model query → Privy signing request → response',raw:'request · response, verbatim',
+ pill:{deny:'Denied · signature refused',exec:'Settled · on-chain',error:'Error',idle:'Idle'},st:{deny:'Denied',exec:'Settled',error:'Error'},
+ noteDeny:(r)=>`The model answered ${r.code} for ${r.company}${r.correct?'':` (expected ${r.expected_code})`}. The address derived from that code is not in the verified list, so Privy's policy engine refused to sign. Nothing reached the chain.`,
+ noteExec:(r)=>`${r.company} → ${r.code}${r.correct?' (correct)':' (wrong, but the code of another registered company)'} → verified recipient. Privy signed and broadcast; settled on Sepolia.`,
+ batchNote:(n,sm)=>`Batch of ${n}: settled ${sm.exec||0} · denied ${sm.deny||0} · error ${sm.error||0}. `,batchTail:' — only the hallucinated legs were refused; the rest settled.',
+ hLedger:'Transactions — every payment this wallet attempted',thTime:'time',thCompany:'company',thModel:'model',thCode:'code',thAmount:'amount',thVerdict:'verdict',thReason:'reason (Privy, verbatim)',modelBefore:'before',modelAfter:'after',
+ hHow:'How it works',
+ how1:'Find the company name in the instruction and ask the selected model <span class="mono">"{company} 종목코드 알려줘. 숫자만."</span> ("tell me the ticker of {company}, digits only") — the same prompt and the same parser as the benchmark.',
+ how2:'Take the first 6-character code in the answer and derive the recipient: <span class="mono">address = 0x + keccak256("ticker:" + code)[12:]</span>. A code that is not in the registry gets an address by the same rule. <b>Our code does not block anything here.</b>',
+ how3:'Send <span class="mono">eth_sendTransaction</span> from the Privy server wallet. The policy ALLOWs only <span class="mono">to ∈ 16 verified addresses AND value ≤ 0.00001 ETH</span>; everything else is denied by default, evaluated inside the TEE.',
+ how4:'If Privy returns a hash the verdict is <b>Settled</b>; if it returns <span class="mono">code: policy_violation</span> the verdict is <b>Denied</b>. Nothing else decides.',
+ hReg:'Verified ticker registry — 16 tickers, all wrong before training',base:'base: ',baseTitle:'what the base model generated',
+ hEvidence:'Evidence',
+ cap1:'Settled payment on Sepolia — From is the agent wallet 0x7c70…6D59; 0.00001 ETH to the verified address of 닷밀 (464580), one leg of the 3-company batch',
+ cap2:'Privy dashboard — policy sh2rb434k1bjfd00xmigksxw: to in [16 verified addresses], value lte 10000000000000',
+ cap3:'Denied payment (base model) — policy_violation verbatim, rendered from real CLI output',
+ cap4:'Privy dashboard — every eth_sendTransaction this wallet succeeded with; denied requests never appear here because no signature was produced',
+ railMode:'mode',live:'Live',mock:'Mock',railWallet:'agent wallet',railPolicy:'policy',railBalance:'balance',railChain:'chain',railCap:'per-settlement cap',railReg:'verified recipients',
+},
+ko:{
+ status:'상태',h1:'환각한 식별자는 지급되지 않는다.<br>같은 지갑, 같은 정책, 같은 코드 — 모델만 바꾼다.',
+ p1:'에이전틱 금융의 실제 사고는 "에이전트가 돈을 너무 많이 썼다"가 아니라 <b>에이전트가 식별자를 환각해 엉뚱한 상대에게 지급했다</b>입니다. 원본 모델에 태양기계의 종목코드를 물으면 <span class="mono">033240</span>처럼 형식은 완벽하고 값만 틀린 코드를 답합니다. 조회라면 오답 한 건이지만, 결제에서는 실재하는 다른 회사로 돈이 나가고 되돌릴 수 없습니다.',
+ p2:'방어는 두 겹이고 서로 독립입니다. 지식 교정(모델이 올바른 식별자를 내게 하는 것)은 우리 연구가, 권한 강제(검증된 식별자에 매핑된 주소가 아니면 <b>서명 자체를 거부</b>하는 것)는 Privy 정책 엔진이 TEE 안에서 합니다. 아래에서 종목코드가 결제 라우팅 키입니다: 회사명 → 6자리 코드 → 코드에서 파생된 주소. 레지스트리에 있는 코드의 주소만 정책을 통과합니다.',
+ n1:'템플릿 정확도, 2,761 종목 · 학습 전 19.0%',n2:'실패 → 성공 전이 종목',n3:'바뀐 파라미터 · 백본 불변',n4:'채팅 형식 정확도, 60 표본 · 학습 전 13%',
+ run:'양쪽 모델로 지급 실행',pay:'',batch:' (3건 일괄)',
+ laneBefore:'학습 전 · 원본 모델',laneAfter:'학습 후 · 종목코드를 학습한 모델',
+ expected:'정답',answer:'모델 답',recipient:'수취 주소',verified:'검증된 수취인 (레지스트리 안)',unverified:'미검증 — 레지스트리에 없는 코드에서 파생',
+ idleBefore:'실행하면 이 모델의 답으로 라우팅된 지급을 Privy 지갑에서 실제로 시도합니다.',idleAfter:'두 레인은 같은 지갑·같은 정책·같은 코드 경로를 지나며, 판정(거부 / 체결)은 Privy 응답에서만 파생됩니다.',
+ running:'실행 중… 모델 질의 → Privy 서명 요청 → 응답',raw:'요청·응답 원문',
+ pill:{deny:'거부 · 서명 거절',exec:'체결 · 온체인',error:'오류',idle:'대기'},st:{deny:'거부',exec:'체결',error:'오류'},
+ noteDeny:(r)=>`모델이 ${r.company}의 코드를 ${r.code}로 답했습니다${r.correct?'':` (정답 ${r.expected_code})`}. 그 코드에서 파생된 주소는 검증 목록에 없어 Privy 정책 엔진이 서명을 거부했습니다. 체인에 아무것도 나가지 않았습니다.`,
+ noteExec:(r)=>`${r.company} → ${r.code}${r.correct?' (정답)':' (오답이지만 레지스트리의 다른 회사 코드)'} → 검증된 수취인. Privy가 서명·전송했고 Sepolia에 체결됐습니다.`,
+ batchNote:(n,sm)=>`${n}건 일괄: 체결 ${sm.exec||0} · 거부 ${sm.deny||0} · 오류 ${sm.error||0}. `,batchTail:' — 환각한 건만 서명이 거부되고 나머지는 정산됐습니다.',
+ hLedger:'거래 — 이 지갑이 시도한 모든 지급',thTime:'시각',thCompany:'회사',thModel:'모델',thCode:'코드',thAmount:'금액',thVerdict:'판정',thReason:'사유 (Privy 원문)',modelBefore:'학습 전',modelAfter:'학습 후',
+ hHow:'어떻게 동작하나',
+ how1:'지시문에서 회사명을 찾고, 선택한 모델에 <span class="mono">"{회사명} 종목코드 알려줘. 숫자만."</span>을 묻습니다 — 벤치마크와 같은 프롬프트, 같은 파서입니다.',
+ how2:'답의 첫 6자리 코드로 수취 주소를 정합니다: <span class="mono">address = 0x + keccak256("ticker:" + code)[12:]</span>. 레지스트리에 없는 코드도 같은 규칙으로 주소를 만듭니다. <b>우리 코드는 여기서 아무것도 막지 않습니다.</b>',
+ how3:'Privy 서버 지갑으로 <span class="mono">eth_sendTransaction</span>을 보냅니다. 정책은 <span class="mono">to ∈ 검증 주소 16개 AND value ≤ 0.00001 ETH</span>만 ALLOW, 그 외 전부 DENY이며 TEE 안에서 평가됩니다.',
+ how4:'Privy가 hash를 돌려주면 <b>체결</b>, <span class="mono">code: policy_violation</span>이면 <b>거부</b>. 판정은 그 외 어디서도 정하지 않습니다.',
+ hReg:'검증된 티커 레지스트리 — 16개, 모두 학습 전에 틀렸던 종목',base:'전: ',baseTitle:'학습 전 모델의 생성',
+ hEvidence:'증거',
+ cap1:'Sepolia 체결 — From이 에이전트 지갑 0x7c70…6D59, 닷밀(464580)의 검증 주소로 0.00001 ETH. 3건 일괄의 한 건',
+ cap2:'Privy 대시보드 — 정책 sh2rb434k1bjfd00xmigksxw: to in [검증 주소 16개], value lte 10000000000000',
+ cap3:'거부된 지급 (원본 모델) — policy_violation 원문, 실제 CLI 출력을 렌더한 이미지',
+ cap4:'Privy 대시보드 — 이 지갑이 성공한 모든 eth_sendTransaction. 거부된 요청은 서명이 만들어지지 않아 여기 나타나지 않습니다',
+ railMode:'모드',live:'Live',mock:'Mock',railWallet:'에이전트 지갑',railPolicy:'정책',railBalance:'잔액',railChain:'체인',railCap:'건당 상한',railReg:'검증 수취인',
+}};
+const L=()=>(window.I18N&&T[window.I18N.lang])?window.I18N.lang:'en';const tr=()=>T[L()];
 const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'—';const eth=w=>(Number(w)/1e18).toLocaleString(undefined,{maximumFractionDigits:8})+' ETH';
-let ST=null,REG=[];
+let ST=null,REG=[],LAST={};
 /* ───── hook 1: lane ───── */
-function render({side,code,state,note,raw,expected,answer,to,verified,hash,explorer,latency}){
-  const L=$('#lane-'+side);const st=state||'idle';
-  L.querySelector('.code').className='code '+st;L.querySelector('.code').textContent=code||'——————';
-  L.querySelector('.exp').innerHTML=`expected <b>${esc(expected||'—')}</b> · model answer <span class="mono">${esc(answer??'—')}</span>${latency?` · <span class="mono">${latency} ms</span>`:''}`;
-  const label={deny:'Denied · signature refused',exec:'Settled · on-chain',error:'Error',idle:'Idle'}[st];
-  L.querySelector('.pill').outerHTML=`<span class="pill ${st}">${label}</span>`;
-  L.querySelector('.to').innerHTML=to?`recipient <b class="mono">${esc(to)}</b> · ${verified?'verified recipient (in registry)':'<span style="color:var(--deny)">unverified — derived from a code that is not in the registry</span>'}${hash?` · <a class="mono" style="color:var(--ink)" target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:''}`:'recipient —';
-  L.querySelector('.note').innerHTML=esc(note||'')+(raw?`<details><summary>request · response, verbatim</summary><pre class="raw">${esc(JSON.stringify(raw,null,1))}</pre></details>`:'');
+function render(o){const {side,code,state,note,raw,expected,answer,to,verified,hash,explorer,latency}=o;LAST[side]=o;const t=tr();
+  const Lx=$('#lane-'+side);const st=state||'idle';
+  Lx.querySelector('.code').className='code '+st;Lx.querySelector('.code').textContent=code||'——————';
+  Lx.querySelector('.exp').innerHTML=`${t.expected} <b>${esc(expected||'—')}</b> · ${t.answer} <span class="mono">${esc(answer??'—')}</span>${latency?` · <span class="mono">${latency} ms</span>`:''}`;
+  Lx.querySelector('.pill').outerHTML=`<span class="pill ${st}">${t.pill[st]}</span>`;
+  Lx.querySelector('.to').innerHTML=to?`${t.recipient} <b class="mono">${esc(to)}</b> · ${verified?t.verified:'<span style="color:var(--deny)">'+t.unverified+'</span>'}${hash?` · <a class="mono" style="color:var(--ink)" target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:''}`:`${t.recipient} —`;
+  Lx.querySelector('.note').innerHTML=(typeof note==='function'?note(t):esc(note||''))+(raw?`<details><summary>${t.raw}</summary><pre class="raw">${esc(JSON.stringify(raw,null,1))}</pre></details>`:'');
 }
 /* ───── hook 2: ledger row ───── */
-function appendRow({time,name,model,code,amount,state,reason,hash,explorer}){
-  const tr=document.createElement('tr');
-  tr.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?'before':'after'}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td><span class="st-${state}">${{deny:'Denied',exec:'Settled',error:'Error'}[state]||state}</span></td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
-  $('#ledger').prepend(tr);
+function appendRow({time,name,model,code,amount,state,reason,hash,explorer}){const t=tr();
+  const trw=document.createElement('tr');
+  trw.innerHTML=`<td class="mono">${esc(time)}</td><td>${esc(name)}</td><td>${model==='before'?t.modelBefore:t.modelAfter}</td><td class="mono">${esc(code||'—')}</td><td class="mono">${amount!=null?eth(amount):'—'}</td><td><span class="st-${state}">${t.st[state]||state}</span></td><td class="reason mono">${esc(reason||'')}</td><td class="mono">${hash?`<a target="_blank" href="${explorer||'#'}">${short(hash)}</a>`:'—'}</td>`;
+  $('#ledger').prepend(trw);
 }
 /* ───── wiring ───── */
-function noteFor(r){
-  if(r.verdict==='deny')return `The model answered ${r.code} for ${r.company}${r.correct?'':` (expected ${r.expected_code})`}. The address derived from that code is not in the verified list, so Privy's policy engine refused to sign. Nothing reached the chain.`;
-  if(r.verdict==='exec')return `${r.company} → ${r.code}${r.correct?' (correct)':' (wrong, but the code of another registered company)'} → verified recipient. Privy signed and broadcast; settled on Sepolia.`;
-  return (r.privy_raw&&r.privy_raw.error)||'error';
-}
+function noteFor(r){return (t)=>{if(r.verdict==='deny')return esc(t.noteDeny(r));if(r.verdict==='exec')return esc(t.noteExec(r));return esc((r.privy_raw&&r.privy_raw.error)||t.pill.error);};}
 function rowFor(r){return {time:new Date((r.t||Date.now()/1000)*1000).toLocaleTimeString('en-GB',{hour12:false}),name:r.company,model:r.model,code:r.code,amount:r.amount_wei,state:r.verdict,reason:r.privy_raw?(r.privy_raw.code||r.privy_raw.error||''):'',hash:r.tx_hash,explorer:r.explorer};}
 async function settle(model,instruction,batch){const res=await fetch(batch?'/settle/batch':'/settle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({instruction,model})});const r=await res.json();if(!res.ok)throw new Error(r.error||res.status);return r;}
-/* Several companies in one instruction → batch settlement: a hallucinated leg is denied on its own, the others settle (partial-failure isolation). */
+/* Several companies in one instruction → batch: a hallucinated leg is denied alone, the others settle. */
 function renderBatch(model,b){const legs=b.legs||[];const sm=b.summary||{};const st=sm.deny>0?'deny':(sm.exec>0?'exec':'error');
   render({side:model,code:`${sm.exec||0}/${legs.length}`,state:st,expected:legs.map(l=>l.expected_code).join(' '),answer:legs.map(l=>l.model_answer).join(' / '),
-    note:`Batch of ${legs.length}: settled ${sm.exec||0} · denied ${sm.deny||0} · error ${sm.error||0}. `+legs.map(l=>`${l.company} ${l.code||'—'} → ${l.verdict.toUpperCase()}`).join(' · ')+(sm.deny>0?' — only the hallucinated legs were refused; the rest settled.':''),
+    note:(t)=>esc(t.batchNote(legs.length,sm)+legs.map(l=>`${l.company} ${l.code||'—'} → ${t.st[l.verdict]||l.verdict}`).join(' · ')+(sm.deny>0?t.batchTail:'')),
     raw:legs.map(l=>({company:l.company,code:l.code,verdict:l.verdict,request:l.privy_request||null,response:l.privy_raw,tx_hash:l.tx_hash})),
     to:legs.map(l=>short(l.to)).join(' · '),verified:legs.every(l=>l.verified_recipient)});
-  const el=$('#lane-'+model+' .code');el.style.fontSize='40px';el.title='settled / total';for(const l of legs)if(l.company)appendRow(rowFor(l));}
+  const el=$('#lane-'+model+' .code');el.style.fontSize='40px';for(const l of legs)if(l.company)appendRow(rowFor(l));}
 async function run(){const instruction=$('#instr').value.trim();if(!instruction)return;$('#run').disabled=true;
   const batch=REG.filter(r=>instruction.includes(r.name)).length>1;
-  for(const s of['before','after']){render({side:s,code:null,state:'idle',note:'Running… model query → Privy signing request → response',expected:'—',answer:'…'});$('#lane-'+s+' .code').style.fontSize='';}
+  for(const s of['before','after']){render({side:s,code:null,state:'idle',note:(t)=>t.running,expected:'—',answer:'…'});$('#lane-'+s+' .code').style.fontSize='';}
   const results=await Promise.all(['before','after'].map(async model=>{try{return await settle(model,instruction,batch);}catch(e){return {model,verdict:'error',privy_raw:{error:String(e)},company:'',code:null,amount_wei:null};}}));
   for(const r of results){if(batch&&r.legs){renderBatch(r.model,r);continue;}
     render({side:r.model,code:r.code,state:r.verdict,note:noteFor(r),raw:{request:r.privy_request||null,response:r.privy_raw,model_answer:r.model_answer,prompt:r.prompt},expected:r.expected_code,answer:r.model_answer,to:r.to,verified:r.verified_recipient,hash:r.tx_hash,explorer:r.explorer,latency:r.latency_ms});
     if(r.company)appendRow(rowFor(r));}
   $('#run').disabled=false;loadStatus();}
 $('#run').onclick=run;$('#instr').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
-async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
-  const live=ST.mode==='privy';
-  $('#rail').innerHTML=[`<span class="${live?'live':'mock'}">mode<b>${live?'Live':'Mock'}</b></span>`,`<span>agent wallet<b title="${ST.wallet_address}">${short(ST.wallet_address)}</b></span>`,`<span>policy<b title="${ST.policy_id}">${(ST.policy_id||"").slice(0,8)}…${(ST.policy_id||"").slice(-4)}</b></span>`,`<span>balance<b>${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b></span>`,`<span>chain<b>${ST.caip2}</b></span>`,`<span>per-settlement cap<b>${eth(ST.amount_wei)}</b></span>`,`<span>verified recipients<b>${ST.registry_size}</b></span>`].join('');
-  if(!$('#ledger').children.length)for(const r of (ST.ledger||[]))if(r.company)appendRow(rowFor(r));}
-async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;
-  $('#reg').innerHTML=registry.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="what the base model generated">base: ${esc(r.before_generation)}</span>`:''}</div>`).join('');
-  const chips=$('#chips');['태양기계','엑시온그룹','성원에너텍','닷밀','KR모터스','픽셀플러스'].filter(n=>registry.some(r=>r.name===n)).forEach(n=>{const b=document.createElement('button');b.textContent='pay '+n;b.onclick=()=>{$('#instr').value=n+'에 대금 지급';run();};chips.appendChild(b);});
-  const multi=document.createElement('button');multi.textContent='pay 태양기계, 픽셀플러스, 닷밀 (batch of 3)';multi.onclick=()=>{$('#instr').value='태양기계, 픽셀플러스, 닷밀에 대금 지급';run();};chips.appendChild(multi);}
+function renderRail(){if(!ST)return;const t=tr();const live=ST.mode==='privy';
+  $('#rail').innerHTML=[`<span class="${live?'live':'mock'}">${t.railMode}<b>${live?t.live:t.mock}</b></span>`,`<span>${t.railWallet}<b title="${ST.wallet_address}">${short(ST.wallet_address)}</b></span>`,`<span>${t.railPolicy}<b title="${ST.policy_id}">${(ST.policy_id||"").slice(0,8)}…${(ST.policy_id||"").slice(-4)}</b></span>`,`<span>${t.railBalance}<b>${ST.balance_eth!=null?ST.balance_eth.toFixed(6)+' ETH':'—'}</b></span>`,`<span>${t.railChain}<b>${ST.caip2}</b></span>`,`<span>${t.railCap}<b>${eth(ST.amount_wei)}</b></span>`,`<span>${t.railReg}<b>${ST.registry_size}</b></span>`].join('');}
+function renderLedger(){$('#ledger').innerHTML='';for(const r of ((ST&&ST.ledger)||[]))if(r.company)appendRow(rowFor(r));}
+async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}renderRail();renderLedger();}
+function renderRegistry(){const t=tr();
+  $('#reg').innerHTML=REG.map(r=>`<div><span class="nm">${esc(r.name)}</span><span class="cd mono">${r.code}</span><span class="ad mono">${r.address}</span>${r.before_generation?`<span class="bg mono" title="${t.baseTitle}">${t.base}${esc(r.before_generation)}</span>`:''}</div>`).join('');
+  const chips=$('#chips');chips.innerHTML='';['태양기계','엑시온그룹','성원에너텍','닷밀','KR모터스','픽셀플러스'].filter(n=>REG.some(r=>r.name===n)).forEach(n=>{const b=document.createElement('button');b.textContent=L()==='ko'?n+'에 대금 지급':t.pay+n;b.onclick=()=>{$('#instr').value=n+'에 대금 지급';run();};chips.appendChild(b);});
+  const multi=document.createElement('button');multi.textContent=(L()==='ko'?'태양기계, 픽셀플러스, 닷밀에 대금 지급':t.pay+'태양기계, 픽셀플러스, 닷밀')+t.batch;multi.onclick=()=>{$('#instr').value='태양기계, 픽셀플러스, 닷밀에 대금 지급';run();};chips.appendChild(multi);}
+async function loadRegistry(){const {registry}=await (await fetch('/api/privy/registry')).json();REG=registry;renderRegistry();}
+function applyLang(){const t=tr();document.querySelectorAll('[data-i18n]').forEach(el=>{const v=t[el.dataset.i18n];if(typeof v==='string')el.innerHTML=v;});
+  for(const side of['before','after'])render(LAST[side]||{side,code:null,state:'idle',note:(t)=>side==='before'?t.idleBefore:t.idleAfter,expected:'—',answer:'—'});
+  renderRail();renderLedger();renderRegistry();}
+window.addEventListener('langchange',applyLang);
 document.querySelectorAll('.shot-empty').forEach(d=>{const img=new Image();img.onload=()=>{d.replaceWith(img);};img.src=d.dataset.img;});
-loadStatus();loadRegistry();setInterval(loadStatus,20000);
+applyLang();loadStatus();loadRegistry();setInterval(loadStatus,20000);
 </script></body></html>
