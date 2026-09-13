@@ -1,6 +1,6 @@
 # Privy 서버 지갑 + 정책 엔진 — "사실을 사는 에이전트" 결제 루프
 
-ETHGlobal 제출용 Privy 통합. 코드는 `web/privy_pay.py` 하나, 화면은 `web/privy.html` (탭 "에이전트 결제 (Privy)"),
+ETHGlobal 제출용 Privy 통합. 코드는 `web/privy_pay.py` 하나, 화면은 `web/privy.html` (탭 "Privy"),
 서버 훅은 `web/server.py` 네 줄. 표준 라이브러리만 쓴다.
 
 ## 핵심 서사
@@ -85,7 +85,7 @@ web/deploy.sh 8080          # 모드 확인 → 기존 서버 종료 → 재시�
 ```
 
 MOCK 이면 서버를 건드리지 않고 멈춘다 (`--allow-mock` 을 주면 그대로 올린다). LIVE 인데 지갑이 없으면
-setup 을 하라고 멈춘다. 끝나면 탭 "에이전트 결제 (Privy)" 의 배지가 **LIVE · Privy 연결됨** 이어야 한다.
+setup 을 하라고 멈춘다. 끝나면 탭 "Privy" 의 배지가 **LIVE · Privy 연결됨** 이어야 한다.
 
 8080 은 `/mnt/newdata/qwen3.8` 체크아웃에서 띄운다. 이 브랜치를 그쪽에 머지한 뒤 그 디렉토리에서 `web/deploy.sh 8080`.
 
