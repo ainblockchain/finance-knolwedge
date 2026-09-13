@@ -6,6 +6,7 @@
 """
 import argparse, json, os, re, sys, urllib.request
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+import privy_pay  # /api/fact (402 결제 요구) · /api/privy/* — Privy 서버 지갑으로 사실을 사는 에이전트
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(ROOT)
@@ -43,6 +44,9 @@ def lookup(text):
     return hits
 
 
+privy_pay.LOOKUP = lookup  # 결제 후 답의 정답 판정에 같은 사전을 쓴다
+
+
 def train_table():
     rows = []
     try:
@@ -70,6 +74,7 @@ class H(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
 
     def do_GET(self):
+        if privy_pay.handle_get(self): return
         if self.path == "/api/bench":
             p = os.path.join(REPO, "results", "verify-all.json")
             return self._json(json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {"error": "아직 없음"})
@@ -105,6 +110,7 @@ class H(SimpleHTTPRequestHandler):
         return key in API_KEYS if API_KEYS else False
 
     def do_POST(self):
+        if privy_pay.handle_post(self): return
         if self.path == "/v1/chat/completions":
             return self._openai_chat()
         m = re.match(r"/api/chat/(before|after)$", self.path)

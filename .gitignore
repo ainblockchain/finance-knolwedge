@@ -27,3 +27,8 @@ share/patches/*.npz
 
 # API 키 (저장소 제외)
 web/api_keys.txt
+
+# Privy 자격증명·지갑 id 와 결제 상태(nonce·영수증)는 저장소에 두지 않는다
+web/privy.env
+web/privy_state.json
+web/privy_state.json.tmp

@@ -1,0 +1,137 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>에이전트 결제 (Privy)</title><link rel="stylesheet" href="style.css">
+<style>
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle;margin-left:8px}
+.badge.mock{background:#3a2f1a;color:var(--warn)}.badge.privy{background:#183a2a;color:var(--ok)}
+.thesis{font-size:17px;line-height:1.7;border-left:3px solid var(--acc);padding:6px 16px;margin:14px 0 18px}
+.thesis b{color:var(--acc)}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px}.kv dt{color:var(--mute)}.kv dd{margin:0;word-break:break-all}
+.steps .s{display:grid;grid-template-columns:34px 1fr;gap:12px;margin:10px 0;padding:10px 12px;background:#0f1218;border:1px solid var(--line);border-radius:10px}
+.steps .n{width:28px;height:28px;border-radius:50%;background:#232836;color:var(--acc);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.steps .s.deny{border-color:#5a2a2a}.steps .s.allow{border-color:#1f4a35}
+.steps h4{margin:0 0 4px;font-size:14px}.steps .note{display:block;margin-bottom:6px}
+details summary{cursor:pointer;color:var(--mute);font-size:13px}details pre{margin-top:6px;max-height:260px}
+.big-answer{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0}
+.verdict{font-weight:700}.deny-pill{background:#4a1f1f;color:var(--bad);padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.allow-pill{background:#183a2a;color:var(--ok);padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.arch{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45;white-space:pre;overflow:auto;background:#0f1218;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.arch .p{color:var(--acc)}.arch .g{color:var(--ok)}.arch .r{color:var(--bad)}.arch .m{color:var(--mute)}
+.log{max-height:260px;overflow:auto;font-size:12.5px}.log div{padding:3px 0;border-bottom:1px solid var(--line)}
+.chk td:first-child{width:28px;font-size:16px}
+</style></head><body><script src="nav.js"></script>
+<main>
+<h1>사실을 사는 에이전트, 그 에이전트를 통제하는 정책 지갑 <span id="mode" class="badge"></span></h1>
+<div class="thesis">
+모델이 지어내듯, 에이전트도 지어냅니다.<br>
+우리 원본 모델은 <b>종목코드의 82%를 환각</b>합니다. 그래서 에이전트는 검증된 사실을 <b>건당 구매</b>합니다.<br>
+그런데 환각하는 에이전트에게 지갑을 쥐여주면 <b>예산도 환각</b>합니다.<br>
+<b>Privy Policy Engine</b>이 그 가드레일입니다. 지출 상한과 수취인 화이트리스트가 TEE 안에서 강제되므로, 에이전트가 오작동하거나 프롬프트 인젝션을 당해도 트레저리를 털 수 없습니다.
+</div>
+<p class="note">이 페이지의 모든 버튼은 실제 HTTP 요청을 보내고 <b>요청·응답 원문</b>을 그대로 펼쳐 보여줍니다. 정책이 <b>거부</b>하는 장면(§2)이 이 데모에서 가장 중요한 장면입니다. 트랜잭션이 성공하는 것은 누구나 보여줄 수 있지만, 거부되는 것은 권한이 진짜라는 증명이기 때문입니다.</p>
+
+<div class="grid2">
+<div class="card"><h2>아키텍처</h2>
+<div class="arch">[사용자 / 평가 하네스]
+      │ "픽셀플러스 종목코드?"
+      ▼
+[<span class="p">Agent</span>] ──<span class="r">402 Payment Required</span>──► [<span class="g">Fact API</span>: 종목코드를 학습한 모델]
+      │                                     ▲
+      │ Privy REST API 로 결제               │
+      ▼                                     │
+[<span class="p">Privy Server Wallet</span>]  (TEE)             │
+  ├ policy: to = FACT_PROVIDER 만 <span class="g">ALLOW</span>      │
+  ├ policy: value ≤ 0.00001 ETH             │
+  └ policy: 그 외 전부 <span class="r">DENY</span>                │
+      │                                     │
+      └──── onchain tx (data = nonce) ──────►│ 영수증 검증(to·value·from·nonce·status) 후 응답
+<span class="m">한 결제 = 한 조회. 서버가 내준 nonce 가 tx data 에 있어야 하고, 같은 tx hash 는 두 번 쓸 수 없다.</span></div></div>
+<div class="card"><h2>지갑 · 정책 상태</h2>
+<dl class="kv" id="kv"></dl>
+<details style="margin-top:10px"><summary>정책 원문 (POST /v1/policies 에 보낸 것)</summary><pre id="policy-json" class="mono"></pre></details>
+</div>
+</div>
+
+<h2>1. 사실을 사는 에이전트 — 한 바퀴</h2>
+<p class="note">에이전트는 먼저 원본 모델에게 무료로 묻고(환각), Fact API 에 물어 402 를 받고, Privy 지갑으로 결제한 뒤, 영수증을 붙여 다시 물어 검증된 답을 받습니다. 아래 예시를 누르거나 질문을 바꿔 보세요.</p>
+<div class="chips" id="chips"></div>
+<div class="bar"><input id="q" placeholder="예: 픽셀플러스 종목코드 알려줘. 숫자만."><button id="run">에이전트 실행</button></div>
+<div class="grid2" style="margin-top:14px">
+  <div class="card"><h2><span class="tag before">무료 · 학습 전</span> 원본 모델의 답</h2><div id="free" class="note">아직 실행 전</div></div>
+  <div class="card"><h2><span class="tag after">결제 후 · 학습 후</span> 영수증으로 받은 답</h2><div id="paid" class="note">아직 실행 전</div></div>
+</div>
+<div class="card" style="margin-top:14px"><h2>단계별 기록 (요청·응답 원문)</h2><div class="steps" id="steps"><span class="note">에이전트를 실행하면 여기에 단계가 쌓입니다.</span></div></div>
+
+<h2>2. 가드레일 — 정책이 거부하는 장면</h2>
+<p class="note">에이전트 프로세스가 오작동했다고 가정하고, 같은 Privy 지갑으로 정책 밖의 트랜잭션을 시도합니다. 정책 엔진이 <b>지갑 안에서</b> 거부하므로 서명 자체가 만들어지지 않습니다. 정상 소액은 통과합니다.</p>
+<div class="chips">
+  <button id="t-over">① 한도 초과 — 공급자에게 100배 금액</button>
+  <button id="t-other">② 다른 수취인 — 화이트리스트 밖 주소로 상한 금액</button>
+  <button id="t-drain">③ 트레저리 탈취 시도 — 다른 주소로 1 ETH</button>
+  <button id="t-ok" class="sec">④ 정상 소액 — 공급자에게 상한 이하 (실제 전송됨)</button>
+</div>
+<div class="card"><table><thead><tr><th>#</th><th>시도</th><th>to</th><th>value</th><th>판정</th><th>Privy 응답</th><th>ms</th></tr></thead><tbody id="tries"></tbody></table></div>
+
+<h2>3. 제출 체크리스트 · 영수증</h2>
+<div class="grid2">
+<div class="card"><table class="chk"><tbody id="chk"></tbody></table><p class="note" id="chk-note"></p></div>
+<div class="card"><h3 style="margin-top:0">결제 영수증 (최근)</h3><div class="log" id="receipts"></div><h3>거부 기록 (최근)</h3><div class="log" id="denials"></div></div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const EX=["픽셀플러스 종목코드 알려줘. 숫자만.","에이직랜드 종목코드 알려줘. 숫자만.","아시아종묘 종목코드 알려줘. 숫자만.","차이커뮤니케이션 종목코드 알려줘. 숫자만.","키움제10호스팩 종목코드 알려줘. 숫자만."];
+EX.forEach(t=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{$('q').value=t;run();};$('chips').appendChild(b);});
+$('q').value=EX[0];
+let ST=null;
+const short=a=>a?a.slice(0,10)+'…'+a.slice(-6):'—';
+const eth=w=>w==null?'—':(Number(w)/1e18).toLocaleString(undefined,{maximumFractionDigits:8})+' ETH';
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const pre=o=>`<pre class="mono">${esc(typeof o==='string'?o:JSON.stringify(o,null,1))}</pre>`;
+function txlink(h){if(!h)return '—';const u=ST&&ST.mode==='privy'&&ST.explorer?ST.explorer+h:null;return u?`<a href="${u}" target="_blank" class="mono">${short(h)}</a>`:`<span class="mono">${short(h)}</span>`;}
+async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json();}catch(e){return;}
+  const m=$('mode');m.textContent=ST.mode==='privy'?'LIVE · Privy 연결됨':'MOCK · Privy 미연결 (정책 판정을 흉내 냄)';m.className='badge '+ST.mode;
+  $('kv').innerHTML=[['모드',ST.mode==='privy'?'<span class="ok">privy (실제 TEE 지갑)</span>':'<span class="bad">mock — web/privy.env 에 PRIVY_APP_ID, PRIVY_APP_SECRET 을 넣고 setup 을 돌리면 LIVE 로 바뀝니다</span>'],
+    ['체인',`${ST.caip2} <span class="note">(chain id ${ST.chain_id})</span>`],['에이전트 지갑 (Privy server wallet)',`<span class="mono">${ST.wallet_address||'—'}</span> <span class="note">id ${ST.wallet_id||'—'}</span>`],
+    ['잔액 (가스+결제용)',eth(ST.balance_wei)],['정책 id',`<span class="mono">${ST.policy_id||'—'}</span>`],['허용 수취인 (사실 공급자)',`<span class="mono">${ST.provider}</span>`],
+    ['건당 상한 · 가격',`${ST.price_wei.toLocaleString()} wei = ${eth(ST.price_wei)}`],['그 외 메서드·주소·금액','<span class="bad">DENY (기본값)</span>']]
+    .map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
+  $('policy-json').textContent=JSON.stringify(ST.policy,null,1);
+  const c=ST.checklist;const rows=[[c.wallet,'Privy 지갑 최소 1개 생성 (POST /v1/wallets)'],[c.policy_attached,'Privy control 사용 — 정책이 지갑에 붙어 있음 (POST /v1/policies)'],[c.paid_flow,'완결된 financial flow 1건 — 온체인 결제로 사실 1건 구매'],[c.denial_observed,'정책 거부 장면 1회 이상 관측 (영상용)']];
+  $('chk').innerHTML=rows.map(([ok,t])=>`<tr><td>${ok?'<span class="ok">✔</span>':'<span class="bad">✘</span>'}</td><td>${t}</td></tr>`).join('');
+  $('chk-note').textContent=ST.mode==='privy'?'LIVE 모드의 실제 기록으로만 체크됩니다.':'MOCK 모드에서는 체크되지 않습니다. 제출 증거는 LIVE 로 만들어야 합니다.';
+  $('receipts').innerHTML=(ST.receipts||[]).slice().reverse().map(r=>`<div>${new Date(r.t*1000).toLocaleTimeString()} · ${txlink(r.hash)} · ${esc(r.q)} → <b>${esc(r.code||'?')}</b> ${r.correct===true?'<span class="ok">정답</span>':r.correct===false?'<span class="bad">오답</span>':''} ${r.mode==='mock'?'<span class="note">mock</span>':''}</div>`).join('')||'<span class="note">없음</span>';
+  $('denials').innerHTML=(ST.denials||[]).slice().reverse().map(d=>`<div>${new Date(d.t*1000).toLocaleTimeString()} · to ${short(d.to)} · ${eth(d.value_wei)} · <span class="deny-pill">DENY</span> <span class="note">${esc(JSON.stringify(d.response)).slice(0,160)}</span></div>`).join('')||'<span class="note">없음</span>';
+}
+function stepHTML(s,i){let cls='',title='',body='';
+  if(s.step==='free_answer'){title='원본 모델에게 무료로 묻다 (학습 전)';body=s.error?`<span class="bad">${esc(s.error)}</span>`:`답: <b>${esc(s.answer)}</b> → 추출 코드 <code>${esc(s.code||'없음')}</code> ${s.correct===true?'<span class="ok">정답</span>':s.correct===false?'<span class="bad">환각 (정답 '+s.truth.map(t=>t.code).join(', ')+')</span>':'<span class="note">정답 사전에 없는 질문</span>'}`;}
+  else if(s.step==='fact_request'&&s.status===402){title=`GET /api/fact → <span class="bad">402 Payment Required</span>`;body=`가격 ${s.body.price_wei.toLocaleString()} wei · payTo <span class="mono">${short(s.body.payTo)}</span> · chain ${s.body.caip2} · nonce <span class="mono">${(s.body.nonce||'').slice(0,12)}…</span>`;}
+  else if(s.step==='fact_request'){title=`GET /api/fact  X-Payment-Receipt: ${short(s.receipt)} → <span class="${s.status===200?'ok':'bad'}">${s.status}</span>`;body=s.status===200?`답: <b>${esc(s.body.answer)}</b> → 코드 <code>${esc(s.body.code||'?')}</code> ${s.body.correct===true?'<span class="ok">정답</span>':s.body.correct===false?'<span class="bad">오답</span>':''} · <span class="note">${esc(s.body.receipt&&s.body.receipt.verified||'')}</span>`:`<span class="bad">${esc(s.body.detail||s.body.error)}</span>`;}
+  else if(s.step==='privy_pay'){cls=s.allowed?'allow':'deny';title=`POST api.privy.io/v1/wallets/{id}/rpc  eth_sendTransaction → ${s.allowed?'<span class="allow-pill">ALLOW</span>':'<span class="deny-pill">DENY</span>'} <span class="note">${s.ms} ms</span>`;body=s.allowed?`tx ${txlink(s.hash)}`:`<span class="bad">${esc(JSON.stringify(s.response))}</span>`;}
+  else if(s.step==='wait_receipt'){title=`영수증 대기 → ${s.ok?'<span class="ok">채굴됨</span>':'<span class="bad">실패/시간초과</span>'}${s.block?' · block '+s.block:''}`;body=s.explorer?`<a href="${s.explorer}" target="_blank">익스플로러에서 보기</a>`:'';}
+  else if(s.step==='agent_budget'){cls='deny';title='에이전트 자체 예산 확인';body=esc(s.note);}
+  else {title=s.step;}
+  const raw={...s};delete raw.note;
+  return `<div class="s ${cls}"><div class="n">${i+1}</div><div><h4>${title}</h4>${s.note?`<span class="note">${esc(s.note)}</span>`:''}<div>${body}</div><details><summary>원문 보기 (${(s.t||0).toFixed(2)}s)</summary>${pre(raw)}</details></div></div>`;}
+async function run(){const q=$('q').value.trim();if(!q)return;$('run').disabled=true;$('steps').innerHTML='<span class="note">실행 중… (결제 체인 확인까지 수십 초 걸릴 수 있습니다)</span>';$('free').textContent='…';$('paid').textContent='…';
+  try{const r=await (await fetch('/api/privy/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q})})).json();
+    $('steps').innerHTML=(r.steps||[]).map(stepHTML).join('');
+    const f=(r.steps||[]).find(s=>s.step==='free_answer');const p=(r.steps||[]).filter(s=>s.step==='fact_request'&&s.status===200)[0];
+    if(f)$('free').innerHTML=f.error?`<span class="bad">${esc(f.error)}</span>`:`<div class="big-answer ${f.correct===false?'bad':f.correct?'ok':''}">${esc(f.code||f.answer)}</div><div class="note">"${esc(f.answer)}"</div>${f.correct===false?`<div class="verdict bad">환각 — 정답은 ${f.truth.map(t=>t.name+' '+t.code).join(', ')}</div>`:f.correct?'<div class="verdict ok">우연히 정답</div>':''}`;
+    if(p)$('paid').innerHTML=`<div class="big-answer ${p.body.correct===false?'bad':'ok'}">${esc(p.body.code||p.body.answer)}</div><div class="note">"${esc(p.body.answer)}"</div><div class="verdict ${p.body.correct===false?'bad':'ok'}">${p.body.correct===false?'오답':'정답 (KRX 상장사 목록 기준)'}</div><div class="note">영수증 ${txlink(p.body.receipt.hash)} · ${eth(ST?ST.price_wei:0)} 지불</div>`;
+    else{const d=(r.steps||[]).find(s=>s.step==='privy_pay'&&!s.allowed);$('paid').innerHTML=`<span class="bad">${d?'결제가 정책에 의해 거부되어 답을 받지 못했습니다':'답을 받지 못했습니다'}</span>`;}
+  }catch(e){$('steps').innerHTML=`<span class="bad">⚠ ${esc(e)}</span>`;}
+  $('run').disabled=false;loadStatus();}
+$('run').onclick=run;$('q').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
+let tn=0;
+async function tryTx(label,to,value_wei){const tb=$('tries');const tr=document.createElement('tr');tn++;tr.innerHTML=`<td>${tn}</td><td>${label}</td><td class="mono">${short(to)}</td><td>${eth(value_wei)}</td><td>…</td><td></td><td></td>`;tb.prepend(tr);
+  try{const r=await (await fetch('/api/privy/try',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,to,value_wei:String(value_wei)})})).json();
+    tr.children[4].innerHTML=r.allowed?'<span class="allow-pill">ALLOW</span>':'<span class="deny-pill">DENY</span>';
+    tr.children[5].innerHTML=r.allowed?`tx ${txlink(r.hash)}`:`<details><summary>${esc(JSON.stringify(r.response)).slice(0,90)}…</summary>${pre(r.response)}</details>`;tr.children[6].textContent=r.ms;
+  }catch(e){tr.children[4].innerHTML=`<span class="bad">⚠</span>`;tr.children[5].textContent=e;}
+  loadStatus();}
+const OTHER='0x000000000000000000000000000000000000dead';
+$('t-over').onclick=()=>tryTx('한도 초과 (100배)',ST.provider,BigInt(ST.price_wei)*100n);
+$('t-other').onclick=()=>tryTx('다른 수취인',OTHER,BigInt(ST.price_wei));
+$('t-drain').onclick=()=>tryTx('트레저리 탈취 시도 (1 ETH)',OTHER,10n**18n);
+$('t-ok').onclick=()=>tryTx('정상 소액',ST.provider,BigInt(ST.price_wei));
+loadStatus();setInterval(loadStatus,15000);
+</script></body></html>
