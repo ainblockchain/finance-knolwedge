@@ -38,7 +38,7 @@ table.ledger a{color:var(--ink);text-decoration:none;border-bottom:1px dotted va
 table.ledger td.reason{color:var(--ink-3);max-width:360px}
 .reg{columns:2;column-gap:28px;font-size:13px}@media(max-width:860px){.reg{columns:1}}.reg div{break-inside:avoid;padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
 .reg .nm{min-width:96px}.reg .cd{color:var(--ink);font-weight:500}.reg .ad{color:var(--ink-3);word-break:break-all}.reg .bg{color:var(--deny);margin-left:auto;white-space:nowrap}
-.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}@media(max-width:860px){.shots{grid-template-columns:1fr}}
+.shots{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}@media(max-width:860px){.shots{grid-template-columns:1fr}}
 .shot{background:var(--surface);border:1px solid var(--line);margin:0}.shot figcaption{padding:8px 12px;color:var(--ink-3);font-size:12.5px;border-top:1px solid var(--line)}
 .shot-empty{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-size:12.5px;text-align:center;padding:16px}.shot img{display:block;width:100%}
 .how{color:var(--ink-3);font-size:13.5px;max-width:820px}.how b{color:var(--ink);font-weight:500}.how ol{padding-left:18px;margin:6px 0}
@@ -82,9 +82,10 @@ table.ledger td.reason{color:var(--ink-3);max-width:360px}
 
 <h2>Evidence</h2>
 <div class="shots">
-  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png<br>Sepolia transaction — From is the agent wallet</div><figcaption>Settled payment (model after training)</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png<br>Privy dashboard, policy view</div><figcaption>Policy: to in [verified addresses], value lte cap</figcaption></figure>
-  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png<br>policy_violation, verbatim</div><figcaption>Denied payment (base model) — rendered from real CLI output</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/etherscan-tx.png">img/etherscan-tx.png</div><figcaption>Settled payment on Sepolia — From is the agent wallet 0x7c70…6D59; 0.00001 ETH to the verified address of 닷밀 (464580), one leg of the 3-company batch</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/privy-policy.png">img/privy-policy.png</div><figcaption>Privy dashboard — policy sh2rb434k1bjfd00xmigksxw: to in [16 verified addresses], value lte 10000000000000</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/deny-response.png">img/deny-response.png</div><figcaption>Denied payment (base model) — policy_violation verbatim, rendered from real CLI output</figcaption></figure>
+  <figure class="shot"><div class="shot-empty" data-img="img/privy-transactions.png">img/privy-transactions.png</div><figcaption>Privy dashboard — every eth_sendTransaction this wallet succeeded with; denied requests never appear here because no signature was produced</figcaption></figure>
 </div>
 </main>
 <script>
