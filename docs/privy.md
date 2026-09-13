@@ -30,12 +30,17 @@ Privy 요건은 **"Privy must be integrated as a core product component"** 이�
 
 ### 0. 자격증명 (5분)
 
-dashboard.privy.io → 앱 생성 → **App ID** 와 **App secret** 을 `web/privy.env` 에:
+dashboard.privy.io → 앱 생성 (웹 주소 칸은 `https://finance-demo.ainetwork.ai`) → **App ID** 와 **App secret** 을
+**`~/.privy/finance-demo.env`** 에 (템플릿이 이미 있다. 권한 600):
 
 ```
 PRIVY_APP_ID=…
 PRIVY_APP_SECRET=…
 ```
+
+이 파일은 어떤 체크아웃에도 속하지 않으므로 원래 체크아웃(8080)·워크트리(8085) 어디서 띄워도 같은 값을 읽는다.
+읽는 순서: `$PRIVY_ENV_FILE` → `web/privy.env` → `~/.privy/finance-demo.env`. 서버 시작 로그 첫 줄과
+`/api/privy/status` 의 `env_file` 에 실제로 읽은 파일이 나온다.
 
 인증은 `Authorization: Basic base64(APP_ID:APP_SECRET)` + `privy-app-id: APP_ID` 헤더다. (계획 초안의
 `echo -n ":$PRIVY_API_KEY"` 는 사용자명이 비어 있어 401 이 난다 — `privy_pay.py` 는 올바른 형태로 보낸다.)
@@ -60,7 +65,7 @@ python3 web/privy_pay.py spike --caip2 eip155:296
 python3 web/privy_pay.py setup --provider 0x<사실 공급자 수취 주소> --write
 ```
 
-`web/privy.env` 에 `PRIVY_POLICY_ID`, `PRIVY_WALLET_ID`, `PRIVY_WALLET_ADDRESS`, `FACT_PROVIDER_ADDRESS`, `FACT_PRICE_WEI`
+`~/.privy/finance-demo.env` 에 `PRIVY_POLICY_ID`, `PRIVY_WALLET_ID`, `PRIVY_WALLET_ADDRESS`, `FACT_PROVIDER_ADDRESS`, `FACT_PRICE_WEI`
 가 덧붙는다. 출력된 지갑 주소에 **테스트넷 ETH 를 파우셋으로 충전**한다 (Base Sepolia: 코인베이스/알케미 파우셋).
 요건은 "완결된 financial flow 1건" 이지 USDC 가 아니므로 네이티브 ETH 전송으로 간다.
 
@@ -73,13 +78,16 @@ python3 web/privy_pay.py setup --provider 0x<사실 공급자 수취 주소> --w
                  {"field_source":"ethereum_transaction","field":"value","operator":"lte","value":"10000000000000"}]}]}
 ```
 
-### 3. 서버 재시작 → 화면 (5분)
+### 3. 배포 (5분)
 
 ```
-python3 web/server.py --port 8080
+web/deploy.sh 8080          # 모드 확인 → 기존 서버 종료 → 재시작 → /api/privy/status 로 검증
 ```
 
-탭 "에이전트 결제 (Privy)" 의 배지가 **LIVE · Privy 연결됨** 이어야 한다. MOCK 이면 env 가 읽히지 않은 것이다.
+MOCK 이면 서버를 건드리지 않고 멈춘다 (`--allow-mock` 을 주면 그대로 올린다). LIVE 인데 지갑이 없으면
+setup 을 하라고 멈춘다. 끝나면 탭 "에이전트 결제 (Privy)" 의 배지가 **LIVE · Privy 연결됨** 이어야 한다.
+
+8080 은 `/mnt/newdata/qwen3.8` 체크아웃에서 띄운다. 이 브랜치를 그쪽에 머지한 뒤 그 디렉토리에서 `web/deploy.sh 8080`.
 
 ### 4. 증거 확보 (20분) — 영상·제출문에 들어갈 것
 

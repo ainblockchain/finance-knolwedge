@@ -9,7 +9,9 @@
 강제되므로, 에이전트 프로세스가 오작동하거나 프롬프트 인젝션을 당해도 트레저리를 털 수 없다. 이 파일은
 그 정책이 실제로 거부하는 장면과 정상 결제가 통과하는 장면을 둘 다 만들어 보이는 데 필요한 것만 담는다.
 
-설정: 환경변수 또는 web/privy.env (KEY=VALUE 한 줄씩, gitignore).
+설정: 환경변수, 또는 아래 순서로 처음 발견되는 파일 (KEY=VALUE 한 줄씩).
+  1) $PRIVY_ENV_FILE           2) web/privy.env (이 파일 옆, gitignore)
+  3) ~/.privy/finance-demo.env  ← 기본. 체크아웃·워크트리와 무관하게 한 곳에 두면 어떤 배포에서도 같은 값을 읽는다.
   PRIVY_APP_ID, PRIVY_APP_SECRET        dashboard.privy.io → App settings → Basics / API keys
   PRIVY_WALLET_ID, PRIVY_WALLET_ADDRESS `python3 web/privy_pay.py setup` 이 만들어 준다
   PRIVY_POLICY_ID                       `setup` 이 만들어 준다
@@ -34,16 +36,27 @@ REPO = os.path.dirname(ROOT)
 PRIVY_API = "https://api.privy.io"
 
 
+CANONICAL_ENV = os.path.expanduser("~/.privy/finance-demo.env")
+ENV_CANDIDATES = [os.environ.get("PRIVY_ENV_FILE", ""), os.path.join(ROOT, "privy.env"), CANONICAL_ENV]
+ENV_FILE = None  # 실제로 읽은 파일. status 와 시작 로그에 나오므로 "어느 env 를 읽었나" 를 추측하지 않아도 된다.
+
+
 def _load_env_file():
-    p = os.path.join(ROOT, "privy.env")
-    if not os.path.exists(p):
+    global ENV_FILE
+    for p in ENV_CANDIDATES:
+        if p and os.path.exists(p):
+            ENV_FILE = p
+            break
+    if not ENV_FILE:
         return
-    for line in open(p, encoding="utf-8"):
+    for line in open(ENV_FILE, encoding="utf-8"):
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         k, v = line.split("=", 1)
-        os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+        v = v.strip().strip('"').strip("'")
+        if v:
+            os.environ.setdefault(k.strip(), v)
 
 
 _load_env_file()
@@ -62,6 +75,8 @@ CFG = {
     "after_api": os.environ.get("AFTER_API", "http://localhost:8001"),
 }
 MODE = "privy" if CFG["app_id"] and CFG["app_secret"] else "mock"
+print(f"privy: mode={MODE} env={ENV_FILE or '(없음)'}" + ("" if MODE == "privy" else
+      f"  ← MOCK. PRIVY_APP_ID/PRIVY_APP_SECRET 을 {CANONICAL_ENV} 에 넣으면 LIVE"), file=sys.stderr, flush=True)
 CHAIN_ID = int(CFG["caip2"].split(":")[1])
 EXPLORER = {84532: "https://sepolia.basescan.org/tx/", 8453: "https://basescan.org/tx/",
             11155111: "https://sepolia.etherscan.io/tx/", 296: "https://hashscan.io/testnet/transaction/"}
@@ -396,7 +411,7 @@ def status():
     bal = balance_wei(CFG["wallet_address"]) if MODE == "privy" and CFG["wallet_address"] else None
     with _lock:
         receipts = list(_state["receipts"][-20:]); denials = list(_state["denials"][-20:]); events = list(_state["events"][-40:])
-    return {"mode": MODE, "wallet_id": CFG["wallet_id"], "wallet_address": CFG["wallet_address"], "policy_id": CFG["policy_id"],
+    return {"mode": MODE, "env_file": ENV_FILE, "wallet_id": CFG["wallet_id"], "wallet_address": CFG["wallet_address"], "policy_id": CFG["policy_id"],
             "provider": CFG["provider"], "price_wei": CFG["price_wei"], "price_eth": CFG["price_wei"] / 1e18,
             "caip2": CFG["caip2"], "chain_id": CHAIN_ID, "rpc_url": CFG["rpc_url"], "explorer": EXPLORER.get(CHAIN_ID, ""),
             "balance_wei": bal, "balance_eth": (bal / 1e18) if bal is not None else None,
@@ -473,9 +488,12 @@ def _cli():
                  f"FACT_PROVIDER_ADDRESS={a.provider.lower()}", f"FACT_PRICE_WEI={a.price_wei}"]
         print("\n".join(lines))
         if a.write:
-            with open(os.path.join(ROOT, "privy.env"), "a", encoding="utf-8") as f:
+            target = ENV_FILE or CANONICAL_ENV
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "a", encoding="utf-8") as f:
                 f.write("\n# setup " + time.strftime("%Y-%m-%d %H:%M") + "\n" + "\n".join(lines) + "\n")
-            print("→ web/privy.env 에 기록했다. 서버를 다시 띄우면 반영된다.")
+            os.chmod(target, 0o600)
+            print(f"→ {target} 에 기록했다. 서버를 다시 띄우면 반영된다 (web/deploy.sh).")
         print(f"\n가스 충전: {w['address']} 에 {CFG['caip2']} 테스트넷 ETH 를 보내라 (파우셋).")
     elif a.cmd == "spike":
         if MODE != "privy":
