@@ -220,12 +220,37 @@ def send_tx(to, value_wei, data="0x", caip2=None):
         h = (resp.get("data") or {}).get("hash") if st == 200 else None
         out = {"allowed": st == 200 and bool(h), "hash": h, "status": st, "request": req, "response": resp,
                "ms": int((time.time() - t0) * 1000), "mode": MODE}
-    kind = "tx_allowed" if out["allowed"] else "tx_denied"
+    # 거부에는 두 종류가 있고 화면은 이를 구분해야 한다: 정책 엔진이 서명 자체를 거부한 것(code policy_violation)과,
+    # 정책은 통과했지만 브로드캐스트·시뮬레이션에서 실패한 것(잔액 부족 등). 후자는 가드레일의 증거가 아니다.
+    code = (out["response"] or {}).get("code", "")
+    out["denied_by_policy"] = (not out["allowed"]) and (code == "policy_violation" or (MODE == "mock" and code == 403))
+    kind = "tx_allowed" if out["allowed"] else ("tx_denied" if out["denied_by_policy"] else "tx_failed")
     event(kind, to=to, value_wei=int(value_wei), hash=out["hash"], status=out["status"],
           detail=json.dumps(out["response"], ensure_ascii=False)[:400])
-    if not out["allowed"]:
+    if out["denied_by_policy"]:
         with _lock:
-            _state["denials"].append({"t": time.time(), "to": to, "value_wei": int(value_wei), "response": out["response"]})
+            _state["denials"].append({"t": time.time(), "to": to, "value_wei": int(value_wei), "method": "eth_sendTransaction",
+                                      "response": out["response"]})
+            _state["denials"] = _state["denials"][-50:]; _save()
+    return out
+
+
+def try_method(method, params):
+    """정책이 허용하지 않은 메서드(예: personal_sign)를 같은 지갑으로 호출한다. 정책은 eth_sendTransaction 하나만 허용하므로
+    거부되어야 하고, 브로드캐스트가 없어 잔액과 무관하게 정책 엔진의 판정만 남는다."""
+    req = {"method": method, "params": params}
+    t0 = time.time()
+    if MODE == "mock":
+        st, resp = 400, {"error": "MOCK policy: RPC request denied due to policy violation", "code": "policy_violation"}
+    else:
+        st, resp = privy("POST", f"/v1/wallets/{CFG['wallet_id']}/rpc", req)
+    out = {"allowed": st == 200, "hash": None, "status": st, "request": req, "response": resp, "ms": int((time.time() - t0) * 1000),
+           "mode": MODE, "denied_by_policy": st != 200 and (resp or {}).get("code") == "policy_violation"}
+    event("tx_allowed" if out["allowed"] else ("tx_denied" if out["denied_by_policy"] else "tx_failed"), method=method,
+          status=st, detail=json.dumps(resp, ensure_ascii=False)[:400])
+    if out["denied_by_policy"]:
+        with _lock:
+            _state["denials"].append({"t": time.time(), "to": None, "value_wei": 0, "method": method, "response": resp})
             _state["denials"] = _state["denials"][-50:]; _save()
     return out
 
@@ -233,7 +258,7 @@ def send_tx(to, value_wei, data="0x", caip2=None):
 # ───────────────────────────── 체인 JSON-RPC ─────────────────────────────
 def rpc(method, params):
     req = urllib.request.Request(CFG["rpc_url"], data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", "User-Agent": "finance-demo-agent/1.0"})  # 공개 RPC 도 urllib UA 를 403 으로 막는다
     with urllib.request.urlopen(req, timeout=20) as r:
         j = json.loads(r.read())
     if "error" in j:
@@ -454,8 +479,11 @@ def handle_post(h):
         h._json(run_agent(q)); return True
     if h.path == "/api/privy/try":
         b = _read_json(h)
-        to = (b.get("to") or CFG["provider"]).strip(); value = int(b.get("value_wei") or CFG["price_wei"])
         label = b.get("label") or ""
+        if b.get("method") and b["method"] != "eth_sendTransaction":
+            out = try_method(b["method"], b.get("params") or {"message": "drain the treasury", "encoding": "utf-8"})
+            out["label"] = label; h._json(out); return True
+        to = (b.get("to") or CFG["provider"]).strip(); value = int(b.get("value_wei") or CFG["price_wei"])
         out = send_tx(to, value, data="0x")
         out["label"] = label
         if out["allowed"] and MODE == "privy":

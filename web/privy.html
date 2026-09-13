@@ -13,6 +13,7 @@ details summary{cursor:pointer;color:var(--mute);font-size:13px}details pre{marg
 .big-answer{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0}
 .verdict{font-weight:700}.deny-pill{background:#4a1f1f;color:var(--bad);padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
 .allow-pill{background:#183a2a;color:var(--ok);padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.fail-pill{background:#3a2f1a;color:var(--warn);padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
 .arch{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.45;white-space:pre;overflow:auto;background:#0f1218;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
 .arch .p{color:var(--acc)}.arch .g{color:var(--ok)}.arch .r{color:var(--bad)}.arch .m{color:var(--mute)}
 .log{max-height:260px;overflow:auto;font-size:12.5px}.log div{padding:3px 0;border-bottom:1px solid var(--line)}
@@ -66,8 +67,10 @@ details summary{cursor:pointer;color:var(--mute);font-size:13px}details pre{marg
   <button id="t-over">① 한도 초과 — 공급자에게 100배 금액</button>
   <button id="t-other">② 다른 수취인 — 화이트리스트 밖 주소로 상한 금액</button>
   <button id="t-drain">③ 트레저리 탈취 시도 — 다른 주소로 1 ETH</button>
-  <button id="t-ok" class="sec">④ 정상 소액 — 공급자에게 상한 이하 (실제 전송됨)</button>
+  <button id="t-sign">④ 허용되지 않은 메서드 — personal_sign 으로 서명 요청 (가스 불필요)</button>
+  <button id="t-ok" class="sec">⑤ 정상 소액 — 공급자에게 상한 이하 (실제 전송됨)</button>
 </div>
+<p class="note">판정 읽는 법: <span class="deny-pill">DENY · 정책</span> 은 Privy 정책 엔진이 서명 자체를 거부한 것(<code>code: policy_violation</code>)이고, <span class="fail-pill">실패 · 브로드캐스트</span> 는 정책은 통과했지만 잔액 부족 등으로 체인에 못 나간 것입니다. 지갑에 가스가 없으면 ①~③ 은 시뮬레이션 단계에서 먼저 실패하므로, 정책 거부를 보려면 가스를 넣거나 ④ 를 누르세요.</p>
 <div class="card"><table><thead><tr><th>#</th><th>시도</th><th>to</th><th>value</th><th>판정</th><th>Privy 응답</th><th>ms</th></tr></thead><tbody id="tries"></tbody></table></div>
 
 <h2>3. 제출 체크리스트 · 영수증</h2>
@@ -99,13 +102,13 @@ async function loadStatus(){try{ST=await (await fetch('/api/privy/status')).json
   $('chk').innerHTML=rows.map(([ok,t])=>`<tr><td>${ok?'<span class="ok">✔</span>':'<span class="bad">✘</span>'}</td><td>${t}</td></tr>`).join('');
   $('chk-note').textContent=ST.mode==='privy'?'LIVE 모드의 실제 기록으로만 체크됩니다.':'MOCK 모드에서는 체크되지 않습니다. 제출 증거는 LIVE 로 만들어야 합니다.';
   $('receipts').innerHTML=(ST.receipts||[]).slice().reverse().map(r=>`<div>${new Date(r.t*1000).toLocaleTimeString()} · ${txlink(r.hash)} · ${esc(r.q)} → <b>${esc(r.code||'?')}</b> ${r.correct===true?'<span class="ok">정답</span>':r.correct===false?'<span class="bad">오답</span>':''} ${r.mode==='mock'?'<span class="note">mock</span>':''}</div>`).join('')||'<span class="note">없음</span>';
-  $('denials').innerHTML=(ST.denials||[]).slice().reverse().map(d=>`<div>${new Date(d.t*1000).toLocaleTimeString()} · to ${short(d.to)} · ${eth(d.value_wei)} · <span class="deny-pill">DENY</span> <span class="note">${esc(JSON.stringify(d.response)).slice(0,160)}</span></div>`).join('')||'<span class="note">없음</span>';
+  $('denials').innerHTML=(ST.denials||[]).slice().reverse().map(d=>`<div>${new Date(d.t*1000).toLocaleTimeString()} · ${d.method&&d.method!=='eth_sendTransaction'?d.method:'to '+short(d.to)+' · '+eth(d.value_wei)} · <span class="deny-pill">DENY · 정책</span> <span class="note">${esc(JSON.stringify(d.response)).slice(0,160)}</span></div>`).join('')||'<span class="note">없음</span>';
 }
 function stepHTML(s,i){let cls='',title='',body='';
   if(s.step==='free_answer'){title='원본 모델에게 무료로 묻다 (학습 전)';body=s.error?`<span class="bad">${esc(s.error)}</span>`:`답: <b>${esc(s.answer)}</b> → 추출 코드 <code>${esc(s.code||'없음')}</code> ${s.correct===true?'<span class="ok">정답</span>':s.correct===false?'<span class="bad">환각 (정답 '+s.truth.map(t=>t.code).join(', ')+')</span>':'<span class="note">정답 사전에 없는 질문</span>'}`;}
   else if(s.step==='fact_request'&&s.status===402){title=`GET /api/fact → <span class="bad">402 Payment Required</span>`;body=`가격 ${s.body.price_wei.toLocaleString()} wei · payTo <span class="mono">${short(s.body.payTo)}</span> · chain ${s.body.caip2} · nonce <span class="mono">${(s.body.nonce||'').slice(0,12)}…</span>`;}
   else if(s.step==='fact_request'){title=`GET /api/fact  X-Payment-Receipt: ${short(s.receipt)} → <span class="${s.status===200?'ok':'bad'}">${s.status}</span>`;body=s.status===200?`답: <b>${esc(s.body.answer)}</b> → 코드 <code>${esc(s.body.code||'?')}</code> ${s.body.correct===true?'<span class="ok">정답</span>':s.body.correct===false?'<span class="bad">오답</span>':''} · <span class="note">${esc(s.body.receipt&&s.body.receipt.verified||'')}</span>`:`<span class="bad">${esc(s.body.detail||s.body.error)}</span>`;}
-  else if(s.step==='privy_pay'){cls=s.allowed?'allow':'deny';title=`POST api.privy.io/v1/wallets/{id}/rpc  eth_sendTransaction → ${s.allowed?'<span class="allow-pill">ALLOW</span>':'<span class="deny-pill">DENY</span>'} <span class="note">${s.ms} ms</span>`;body=s.allowed?`tx ${txlink(s.hash)}`:`<span class="bad">${esc(JSON.stringify(s.response))}</span>`;}
+  else if(s.step==='privy_pay'){cls=s.allowed?'allow':'deny';title=`POST api.privy.io/v1/wallets/{id}/rpc  eth_sendTransaction → ${s.allowed?'<span class="allow-pill">ALLOW</span>':s.denied_by_policy?'<span class="deny-pill">DENY · 정책</span>':'<span class="fail-pill">실패 · 브로드캐스트</span>'} <span class="note">${s.ms} ms</span>`;body=s.allowed?`tx ${txlink(s.hash)}`:`<span class="bad">${esc(JSON.stringify(s.response))}</span>`;}
   else if(s.step==='wait_receipt'){title=`영수증 대기 → ${s.ok?'<span class="ok">채굴됨</span>':'<span class="bad">실패/시간초과</span>'}${s.block?' · block '+s.block:''}`;body=s.explorer?`<a href="${s.explorer}" target="_blank">익스플로러에서 보기</a>`:'';}
   else if(s.step==='agent_budget'){cls='deny';title='에이전트 자체 예산 확인';body=esc(s.note);}
   else {title=s.step;}
@@ -122,9 +125,9 @@ async function run(){const q=$('q').value.trim();if(!q)return;$('run').disabled=
   $('run').disabled=false;loadStatus();}
 $('run').onclick=run;$('q').addEventListener('keydown',e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();run();}});
 let tn=0;
-async function tryTx(label,to,value_wei){const tb=$('tries');const tr=document.createElement('tr');tn++;tr.innerHTML=`<td>${tn}</td><td>${label}</td><td class="mono">${short(to)}</td><td>${eth(value_wei)}</td><td>…</td><td></td><td></td>`;tb.prepend(tr);
-  try{const r=await (await fetch('/api/privy/try',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,to,value_wei:String(value_wei)})})).json();
-    tr.children[4].innerHTML=r.allowed?'<span class="allow-pill">ALLOW</span>':'<span class="deny-pill">DENY</span>';
+async function tryTx(label,to,value_wei,method){const tb=$('tries');const tr=document.createElement('tr');tn++;tr.innerHTML=`<td>${tn}</td><td>${label}</td><td class="mono">${method?method:short(to)}</td><td>${method?'—':eth(value_wei)}</td><td>…</td><td></td><td></td>`;tb.prepend(tr);
+  try{const r=await (await fetch('/api/privy/try',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(method?{label,method}:{label,to,value_wei:String(value_wei)})})).json();
+    tr.children[4].innerHTML=r.allowed?'<span class="allow-pill">ALLOW</span>':r.denied_by_policy?'<span class="deny-pill">DENY · 정책</span>':'<span class="fail-pill">실패 · 브로드캐스트</span>';
     tr.children[5].innerHTML=r.allowed?`tx ${txlink(r.hash)}`:`<details><summary>${esc(JSON.stringify(r.response)).slice(0,90)}…</summary>${pre(r.response)}</details>`;tr.children[6].textContent=r.ms;
   }catch(e){tr.children[4].innerHTML=`<span class="bad">⚠</span>`;tr.children[5].textContent=e;}
   loadStatus();}
@@ -132,6 +135,7 @@ const OTHER='0x000000000000000000000000000000000000dead';
 $('t-over').onclick=()=>tryTx('한도 초과 (100배)',ST.provider,BigInt(ST.price_wei)*100n);
 $('t-other').onclick=()=>tryTx('다른 수취인',OTHER,BigInt(ST.price_wei));
 $('t-drain').onclick=()=>tryTx('트레저리 탈취 시도 (1 ETH)',OTHER,10n**18n);
+$('t-sign').onclick=()=>tryTx('허용되지 않은 메서드',null,0n,'personal_sign');
 $('t-ok').onclick=()=>tryTx('정상 소액',ST.provider,BigInt(ST.price_wei));
 loadStatus();setInterval(loadStatus,15000);
 </script></body></html>
