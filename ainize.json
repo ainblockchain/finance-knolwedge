@@ -1,0 +1,7 @@
+{
+  "name": "finance-knolwedge",
+  "kind": "service",
+  "port": 8080,
+  "healthcheck": "/index.html",
+  "build": { "dockerfile": "Dockerfile.ainize", "context": "." }
+}

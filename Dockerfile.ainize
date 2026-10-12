@@ -1,0 +1,17 @@
+# ainize: serves the demo front end (web/server.py, stdlib only) on $PORT.
+# The model backends (vLLM "before"/"after" instances on GPUs) are NOT part of this image;
+# point BEFORE_API / AFTER_API at them. Without them the static pages, /api/lookup,
+# /api/bench and /v1/models still answer; chat calls return 502.
+# The build runs the offline unit tests (web/test_privy_pay.py) so a broken build fails the deploy.
+FROM python:3.11-slim
+WORKDIR /app
+COPY web ./web
+COPY data ./data
+COPY results ./results
+COPY scripts ./scripts
+RUN python -m py_compile web/server.py web/privy_pay.py \
+ && python web/test_privy_pay.py
+ENV PORT=8080 PYTHONUNBUFFERED=1
+USER nobody
+EXPOSE 8080
+CMD ["sh", "-c", "exec python web/server.py --port \"$PORT\""]
